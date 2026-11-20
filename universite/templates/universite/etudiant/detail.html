@@ -1,0 +1,121 @@
+{% extends 'universite/base.html' %}
+{% block titre %}{{ etudiant.nom_complet }} — Gestion universitaire{% endblock %}
+{% block entete %}{{ etudiant.nom_complet }}{% endblock %}
+{% block contenu %}
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card carte text-center p-4">
+            {% if etudiant.photo %}
+                <img src="{{ etudiant.photo.url }}" class="rounded-circle mx-auto mb-3" style="width:110px;height:110px;object-fit:cover">
+            {% else %}
+                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center mx-auto mb-3" style="width:110px;height:110px;font-size:2.4rem">
+                    <i class="bi bi-person"></i>
+                </div>
+            {% endif %}
+            <h5 class="mb-0">{{ etudiant.nom }} {{ etudiant.prenom }}</h5>
+            <span class="badge bg-{% if etudiant.statut == 'actif' %}success{% elif etudiant.statut == 'suspendu' %}warning{% else %}secondary{% endif %} mt-1">{{ etudiant.get_statut_display }}</span>
+            <hr>
+            <div class="text-start small">
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Matricule</span><strong>{{ etudiant.matricule }}</strong></div>
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Filière</span><strong>{{ etudiant.filiere.nom|default:'—' }}</strong></div>
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Sexe</span><strong>{{ etudiant.get_sexe_display }}</strong></div>
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Naissance</span><strong>{{ etudiant.date_naissance|date:'d/m/Y' }} ({{ etudiant.age }} ans)</strong></div>
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Téléphone</span><strong>{{ etudiant.telephone|default:'—' }}</strong></div>
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Email</span><strong>{{ etudiant.email|default:'—' }}</strong></div>
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Nationalité</span><strong>{{ etudiant.nationalite }}</strong></div>
+            </div>
+            <div class="d-flex gap-2 mt-3 no-print">
+                <a href="{% url 'universite_etudiant_update' etudiant.pk %}" class="btn btn-sm btn-primary flex-fill"><i class="bi bi-pencil me-1"></i>Modifier</a>
+                <a href="{% url 'universite_releve_etudiant' etudiant.pk %}" class="btn btn-sm btn-outline-secondary flex-fill"><i class="bi bi-file-earmark-text me-1"></i>Relevé</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3"><div class="card carte text-center p-3"><div class="text-muted small">CGPA</div><h4 class="mb-0 {% if cgpa >= 10 %}text-success{% else %}text-danger{% endif %}">{{ cgpa }}</h4><small class="text-muted">/20</small></div></div>
+            <div class="col-6 col-md-3"><div class="card carte text-center p-3"><div class="text-muted small">Moyenne</div><h4 class="mb-0">{{ moyenne }}</h4><small class="text-muted">/20</small></div></div>
+            <div class="col-6 col-md-3"><div class="card carte text-center p-3"><div class="text-muted small">UE validées</div><h4 class="mb-0 text-success">{{ nb_valid }}</h4><small class="text-muted">unités</small></div></div>
+            <div class="col-6 col-md-3"><div class="card carte text-center p-3"><div class="text-muted small">Crédits acquis</div><h4 class="mb-0 text-primary">{{ credits }}</h4><small class="text-muted">ECTS</small></div></div>
+        </div>
+
+        <div class="card carte mb-3">
+            <div class="card-header bg-white"><strong><i class="bi bi-clipboard-check me-2 text-success"></i>Inscriptions</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>N°</th><th>Année</th><th>Filière</th><th>Niveau</th><th>Statut</th></tr></thead>
+                    <tbody>
+                        {% for ins in inscriptions %}
+                        <tr>
+                            <td>{{ ins.numero }}</td>
+                            <td>{{ ins.annee.libelle }}</td>
+                            <td>{{ ins.filiere.nom }}</td>
+                            <td>L{{ ins.niveau_annee }}</td>
+                            <td><span class="badge bg-secondary">{{ ins.get_statut_display }}</span></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucune inscription</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card carte mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-cash-coin me-2 text-primary"></i>Paiements récents</strong>
+                <a href="{% url 'universite_paiement_create' %}" class="btn btn-sm btn-outline-primary">Encaisser</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Référence</th><th>Frais</th><th>Montant</th><th>Date</th><th>Mode</th></tr></thead>
+                    <tbody>
+                        {% for p in paiements %}
+                        <tr>
+                            <td>{{ p.reference }}</td>
+                            <td>{{ p.type_frais.nom }}</td>
+                            <td><strong>{{ p.montant }} {{ universite_parametres.devise_code }}</strong></td>
+                            <td>{{ p.date|date:'d/m/Y' }}</td>
+                            <td>{{ p.mode }}</td>
+                        </tr>
+                        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucun paiement</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if compte %}
+        <div class="card carte grad-cantine text-white">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1"><i class="bi bi-wallet2 me-2"></i>Compte cantine</h6>
+                    <span class="small text-white-50">Carte {{ compte.code_carte }}</span>
+                </div>
+                <div class="text-end">
+                    <div class="fs-4 fw-bold">{{ compte.solde }} {{ universite_parametres.devise_code }}</div>
+                    <a href="{% url 'universite_compte_detail' compte.pk %}" class="small text-white">Détails →</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if validations %}
+        <div class="card carte mt-3">
+            <div class="card-header bg-white"><strong><i class="bi bi-award me-2 text-warning"></i>Validations d'UE</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>UE</th><th>Semestre</th><th>Moyenne</th><th>Décision</th></tr></thead>
+                    <tbody>
+                        {% for v in validations %}
+                        <tr>
+                            <td>{{ v.ue.code }} — {{ v.ue.nom }}</td>
+                            <td>{{ v.semestre.nom }}</td>
+                            <td>{{ v.moyenne }}</td>
+                            <td><span class="badge bg-{% if v.decision == 'valide' %}success{% elif v.decision == 'compense' %}info{% else %}danger{% endif %}">{{ v.get_decision_display }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'universite/base.html' %}
+{% block titre %}{{ cours.titre }}{% endblock %}
+{% block entete %}{{ cours.titre }}{% endblock %}
+{% block contenu %}
+<div class="card carte mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+                <span class="badge bg-primary me-1">{{ cours.ue.code }} — {{ cours.ue.nom }}</span>
+                <span class="badge bg-{% if cours.publie %}success{% else %}secondary{% endif %}">{{ cours.publie|yesno:'Publié,Brouillon' }}</span>
+                <div class="text-muted mt-2">
+                    {% if cours.enseignant %}<i class="bi bi-person-badge me-1"></i>{{ cours.enseignant.nom_complet }}{% endif %}
+                    <span class="ms-3"><i class="bi bi-clock me-1"></i>{{ cours.duree_minutes }} min</span>
+                    <span class="ms-3"><i class="bi bi-calendar-event me-1"></i>{{ cours.date_creation|date:'d/m/Y' }}</span>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'universite_cours_update' cours.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Modifier</a>
+                <a href="{% url 'universite_cours_delete' cours.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Supprimer</a>
+            </div>
+        </div>
+        {% if cours.description %}<p class="mt-3 mb-0">{{ cours.description }}</p>{% endif %}
+    </div>
+</div>
+
+{% if cours.fichier or cours.url_video %}
+<div class="card carte mb-4">
+    <div class="card-header bg-white"><strong><i class="bi bi-paperclip me-2 text-primary"></i>Supports & ressources</strong></div>
+    <div class="card-body">
+        {% if cours.fichier %}
+        <a href="{{ cours.fichier.url }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-file-earmark-arrow-down me-1"></i>Télécharger le support de cours
+        </a>
+        {% endif %}
+        {% if cours.url_video %}
+        <a href="{{ cours.url_video }}" class="btn btn-outline-danger btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-youtube me-1"></i>Voir la vidéo / ressource en ligne
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if cours.contenu %}
+<div class="card carte">
+    <div class="card-header bg-white"><strong><i class="bi bi-journal-richtext me-2 text-primary"></i>Contenu du cours</strong></div>
+    <div class="card-body">
+        {{ cours.contenu|linebreaks }}
+    </div>
+</div>
+{% endif %}
+
+<a href="{% url 'universite_cours' %}" class="btn btn-outline-secondary mt-4"><i class="bi bi-arrow-left me-1"></i>Retour aux cours</a>
+{% endblock %}

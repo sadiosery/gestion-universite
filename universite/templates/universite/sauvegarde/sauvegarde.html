@@ -1,0 +1,88 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Sauvegardes — Gestion universitaire{% endblock %}
+{% block entete %}Sauvegardes des données{% endblock %}
+{% block contenu %}
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="card carte">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-database-check me-2 text-primary"></i>Sauvegardes disponibles</strong>
+                <form method="post" action="{% url 'universite_sauvegarde_creer' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>Créer une sauvegarde
+                    </button>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                {% if sauvegardes %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fichier</th>
+                                <th>Date</th>
+                                <th>Taille</th>
+                                <th>Type</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in sauvegardes %}
+                            <tr>
+                                <td><code>{{ s.fichier }}</code></td>
+                                <td>{% if s.date %}{{ s.date|date:'d/m/Y H:i' }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                <td>{{ s.taille|filesizeformat }}</td>
+                                <td>
+                                    {% if s.automatique %}
+                                        <span class="badge bg-info">automatique</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">manuel</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if s.id %}
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'universite_sauvegarde_telecharger' s.id %}" class="btn btn-outline-primary" title="Télécharger"><i class="bi bi-download"></i></a>
+                                        <a href="{% url 'universite_sauvegarde_restaurer' s.id %}" class="btn btn-outline-warning" title="Restaurer"><i class="bi bi-arrow-counterclockwise"></i></a>
+                                        <form method="post" action="{% url 'universite_sauvegarde_supprimer' s.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger" title="Supprimer" onclick="return confirm('Supprimer cette sauvegarde ?')"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </div>
+                                    {% else %}
+                                        <span class="text-muted small">fichier orphelin</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox" style="font-size:2.5rem"></i>
+                    <p class="mt-2 mb-0">Aucune sauvegarde pour le moment.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card carte">
+            <div class="card-header bg-white"><strong><i class="bi bi-info-circle me-2 text-success"></i>À propos</strong></div>
+            <div class="card-body small">
+                <p class="mb-2">Chaque sauvegarde est un fichier <strong>.zip autonome et exploitable</strong> contenant :</p>
+                <ul class="mb-2">
+                    <li><code>db.sqlite3</code> — la base complète, restaurable telle quelle ;</li>
+                    <li><code>dumpdata.json</code> — export JSON portable de toutes les données (réimportable avec <code>loaddata</code>) ;</li>
+                    <li><code>media/</code> — les fichiers téléversés (photos, logos) ;</li>
+                    <li><code>metadonnees.txt</code> — date et contenu.</li>
+                </ul>
+                <p class="mb-2">Une sauvegarde <strong>automatique</strong> est créée à chaque connexion si la dernière date de plus de {{ sauv_intervalle|default:24 }} heures.</p>
+                <p class="mb-0 text-muted">Dossier : <code>{{ dossier_sauvegardes }}</code></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

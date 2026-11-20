@@ -1,0 +1,41 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environnement virtuel
+venv/
+.venv/
+env/
+
+# Variables et secrets
+.env
+.env.*
+!.env.example
+
+# Base de données
+*.sqlite3
+*.db
+
+# Sauvegardes
+sauvegardes/
+backups/
+
+# Fichiers téléversés
+media/
+
+# Journaux
+*.log
+*.err
+
+# Configuration locale
+local_settings.py
+
+# Éditeurs
+.vscode/
+.idea/
+
+# Système
+.DS_Store
+Thumbs.db

@@ -1,0 +1,49 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Étudiants — Gestion universitaire{% endblock %}
+{% block entete %}Étudiants{% endblock %}
+{% block contenu %}
+<div class="card carte mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small mb-1">Recherche (nom, prénom, matricule)</label>
+                <input type="text" name="q" value="{{ recherche }}" class="form-control form-control-sm" placeholder="Ex : KOUASSI...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Filière</label>
+                <select name="filiere" class="form-select form-select-sm">
+                    <option value="">Toutes</option>
+                    {% for f in filieres %}<option value="{{ f.pk }}" {% if f.pk|stringformat:'s' == filiere_sel %}selected{% endif %}>{{ f.nom }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search me-1"></i>Filtrer</button></div>
+            <div class="col-md-3 d-flex gap-2">
+                <a href="{% url 'universite_etudiant_create' %}" class="btn btn-sm btn-primary flex-fill"><i class="bi bi-person-plus me-1"></i>Nouveau</a>
+                <a href="{% url 'universite_export_etudiants' %}" class="btn btn-sm btn-outline-success flex-fill"><i class="bi bi-download me-1"></i>Export</a>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="card carte">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>Nom</th><th>Matricule</th><th>Filière</th><th>Sexe</th><th>Téléphone</th><th>Moyenne</th><th>Statut</th></tr>
+            </thead>
+            <tbody>
+                {% for cellule in lignes %}
+                <tr>
+                    {% for c in cellule %}
+                        {% if c.badge %}<td><span class="badge bg-{{ c.badge }}">{{ c.texte }}</span></td>
+                        {% elif c.url %}<td><a href="{{ c.url }}">{{ c.texte }}</a></td>
+                        {% else %}<td>{{ c }}</td>{% endif %}
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox me-1"></i>Aucun étudiant</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

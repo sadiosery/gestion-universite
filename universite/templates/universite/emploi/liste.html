@@ -1,0 +1,40 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Emploi du temps{% endblock %}
+{% block entete %}Emploi du temps{% endblock %}
+{% block contenu %}
+<div class="card carte mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Jour</label>
+                <select name="jour" class="form-select form-select-sm">
+                    <option value="">Tous</option>
+                    {% for j in jours %}<option value="{{ j }}" {% if j == jour_sel %}selected{% endif %}>{{ j }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search me-1"></i>Filtrer</button></div>
+            <div class="col-md-7 text-md-end">
+                <a href="{% url 'universite_emploi_create' %}" class="btn btn-sm btn-primary"><i class="bi bi-calendar-plus me-1"></i>Nouveau créneau</a>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="card carte">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Jour</th><th>Heures</th><th>UE</th><th>Type</th><th>Salle</th><th>Enseignant</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for cellule in lignes %}
+                <tr>
+                    {% for cell in cellule %}
+                        {% if cell.badge %}<td><span class="badge bg-{{ cell.badge }}">{{ cell.texte }}</span></td>
+                        {% elif cell.url %}<td><a href="{{ cell.url }}">{{ cell.texte }}</a></td>
+                        {% else %}<td>{{ cell }}</td>{% endif %}
+                    {% endfor %}
+                </tr>
+                {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Aucun créneau</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

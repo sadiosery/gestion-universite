@@ -1,0 +1,61 @@
+{% extends 'universite/base.html' %}
+{% load universite_tags %}
+{% block titre %}Rapports de laboratoire{% endblock %}
+{% block entete %}Rapports de laboratoire{% endblock %}
+{% block contenu %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div class="text-muted small">
+        {% if request.user.etudiant %}Vos rapports d'expérience{% else %}Tous les rapports des étudiants (100 derniers){% endif %}
+        — <strong>{{ rapports|length }}</strong> enregistré(s).
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'universite_labo_references' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-book me-1"></i>Références</a>
+        <a href="{% url 'universite_labo' %}" class="btn btn-primary btn-sm"><i class="bi bi-magic me-1"></i>Laboratoire</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for r in rapports %}
+    <div class="col-md-6">
+        <div class="card carte h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="badge bg-{% if r.experience.discipline == 'physique' %}primary{% elif r.experience.discipline == 'chimie' %}danger{% else %}success{% endif %}">
+                    <i class="bi bi-{% if r.experience.discipline == 'physique' %}activity{% elif r.experience.discipline == 'chimie' %}droplet{% else %}flower1{% endif %} me-1"></i>{{ r.experience.get_discipline_display }}
+                </span>
+                <div class="d-flex align-items-center gap-2">
+                    {% if r.note %}<span class="badge bg-{% if r.note >= 10 %}success{% else %}danger{% endif %}">Note : {{ r.note }}/20</span>{% endif %}
+                    <a href="{% url 'universite_labo_rapport_csv' r.id %}" class="btn btn-sm btn-outline-secondary" title="Exporter le CSV"><i class="bi bi-download"></i></a>
+                </div>
+            </div>
+            <div class="card-body">
+                <h6 class="fw-bold mb-1">{{ r.experience.titre }}
+                    <span class="badge bg-light text-dark border ms-1">{{ r.experience.get_niveau_display }}</span>
+                </h6>
+                <div class="small text-muted mb-2">
+                    {% if not request.user.etudiant %}<span class="me-2">{{ r.etudiant.nom }} {{ r.etudiant.prenom }}</span>{% endif %}
+                    <i class="bi bi-clock me-1"></i>{{ r.date|date:'d/m/Y H:i' }}
+                </div>
+                {% if r.parametres %}<div class="small mb-1"><strong>Paramètres :</strong> {{ r.parametres|truncatechars:120 }}</div>{% endif %}
+                {% if r.resultats %}<div class="small mb-1"><strong>Résultats :</strong> {{ r.resultats|truncatechars:150 }}</div>{% endif %}
+                {% if r.donnees %}
+                <div class="small mb-1">
+                    <strong>Données :</strong>
+                    <span class="badge bg-light text-dark border">{{ r.donnees|length }} octets ({{ r.donnees|split|length }} lignes)</span>
+                </div>
+                {% endif %}
+                {% if r.analyse %}<div class="small mb-1"><strong>Analyse :</strong> {{ r.analyse|truncatechars:140 }}</div>{% endif %}
+                {% if r.observations %}<div class="small text-muted mb-1"><strong>Observations :</strong> {{ r.observations|truncatechars:150 }}</div>{% endif %}
+                {% if r.conclusion %}<div class="small text-muted"><strong>Conclusion :</strong> {{ r.conclusion|truncatechars:150 }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12"><div class="card carte"><div class="card-body text-center text-muted py-5">
+        <i class="bi bi-journal-x" style="font-size:2.5rem"></i>
+        <h6 class="mt-2">Aucun rapport enregistré</h6>
+        <p class="small mb-3">Lancez une simulation puis enregistrez votre rapport depuis l'expérience.</p>
+        <a href="{% url 'universite_labo' %}" class="btn btn-sm btn-primary"><i class="bi bi-magic me-1"></i>Explorer le laboratoire</a>
+    </div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

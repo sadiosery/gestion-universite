@@ -1,0 +1,54 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Reçu {{ paiement.reference }}{% endblock %}
+{% block entete %}Reçu de paiement{% endblock %}
+{% block contenu %}
+<div class="d-flex justify-content-end mb-3 no-print">
+    <button class="btn btn-outline-primary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimer</button>
+</div>
+<div class="card carte">
+    <div class="card-body p-5">
+        <div class="text-center mb-4">
+            <h5 class="mb-1">{{ universite_parametres.nom_universite }}</h5>
+            <div class="small text-muted">{{ universite_parametres.adresse }} · Tél : {{ universite_parametres.telephone }}</div>
+            <div class="mt-2"><span class="badge bg-dark fs-6">REÇU DE PAIEMENT N° {{ paiement.reference }}</span></div>
+        </div>
+        <hr>
+        <div class="row mb-3">
+            <div class="col-6">
+                <div class="small text-muted">Référence</div><strong>{{ paiement.reference }}</strong>
+                <div class="small text-muted mt-2">Date</div><strong>{{ paiement.date|date:'l d F Y' }}</strong>
+            </div>
+            <div class="col-6">
+                <div class="small text-muted">Étudiant</div><strong>{{ paiement.etudiant.nom }} {{ paiement.etudiant.prenom }}</strong>
+                <div class="small text-muted mt-2">Matricule</div><strong>{{ paiement.etudiant.matricule }}</strong>
+            </div>
+        </div>
+        <table class="table table-bordered">
+            <thead class="table-light"><tr><th>Désignation</th><th>Année</th><th>Mode</th><th class="text-end">Montant</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>{{ paiement.type_frais.nom }}</td>
+                    <td>{{ paiement.annee.libelle }}</td>
+                    <td>{{ paiement.mode }}{% if paiement.reference_externe %} ({{ paiement.reference_externe }}){% endif %}</td>
+                    <td class="text-end fs-5 fw-bold">{{ paiement.montant|floatformat:0 }} {{ universite_parametres.devise_code }}</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="mb-3">
+            <div class="small text-muted">Arrêté le présent reçu à la somme de :</div>
+            <em>{{ lettres }} ({{ paiement.montant|floatformat:0 }} {{ universite_parametres.devise_code }})</em>
+        </div>
+        <div class="row mt-5">
+            <div class="col-6 text-center">
+                <div class="border-top pt-2 small">Encaissé par : {{ paiement.enregistre_par.username|default:'—' }}</div>
+            </div>
+            <div class="col-6 text-center">
+                <div class="border-top pt-2 small">Signature</div>
+            </div>
+        </div>
+        {% if universite_parametres.mention_bulletin %}
+        <div class="text-center text-muted small mt-4">{{ universite_parametres.mention_bulletin }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

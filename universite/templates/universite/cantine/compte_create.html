@@ -1,0 +1,32 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Ouvrir un compte cantine{% endblock %}
+{% block entete %}Ouvrir un compte cantine{% endblock %}
+{% block contenu %}
+<div class="card carte">
+    <div class="card-header bg-white"><strong><i class="bi bi-wallet2 me-2 text-primary"></i>Étudiants sans compte</strong></div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th></th><th>Nom</th><th>Matricule</th><th>Filière</th></tr></thead>
+                <tbody>
+                    {% for e in etudiants %}
+                    <tr>
+                        <td class="text-center"><input type="radio" name="etudiant" value="{{ e.pk }}" required></td>
+                        <td>{{ e.nom }} {{ e.prenom }}</td>
+                        <td class="text-muted">{{ e.matricule }}</td>
+                        <td>{{ e.filiere.nom|default:'—' }}</td>
+                    </tr>
+                    {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Tous les étudiants actifs ont déjà un compte cantine.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if etudiants %}
+        <div class="card-footer bg-white text-end">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-wallet2 me-1"></i>Créer le compte</button>
+            <a href="{% url 'universite_comptes' %}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

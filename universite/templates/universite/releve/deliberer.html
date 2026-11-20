@@ -1,0 +1,34 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Délibération LMD{% endblock %}
+{% block entete %}Délibération (jury de semestre){% endblock %}
+{% block contenu %}
+<div class="card carte mb-4">
+    <div class="card-header bg-white"><strong><i class="bi bi-gavel me-2 text-primary"></i>Lancer la délibération</strong></div>
+    <div class="card-body">
+        <p class="text-muted">Calcule automatiquement la moyenne pondérée de chaque UE (CC×1, TP×1, EX×2), valide les UE ≥ {{ universite_parametres.seuil_validation }}/20 et crée les décisions pour chaque étudiant inscrit.</p>
+        <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-md-4">
+                <label class="form-label">Semestre</label>
+                <select name="semestre" class="form-select" required>
+                    {% for s in semestres %}<option value="{{ s.pk }}">{{ s.nom }} — {{ s.annee.libelle }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Filière</label>
+                <select name="filiere" class="form-select" required>
+                    {% for f in filieres %}<option value="{{ f.pk }}">{{ f.nom }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-calculator me-1"></i>Calculer les décisions</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-lightbulb me-2"></i>
+    <strong>Règles LMD :</strong> une UE est validée si la moyenne pondérée des notes (CC, TP, Examen) est ≥ {{ universite_parametres.seuil_validation }}/20. Les crédits ECTS ne sont acquis qu'une fois l'UE validée. La compensation peut être activée pour les UE proches du seuil.
+</div>
+{% endblock %}

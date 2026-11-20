@@ -1,0 +1,113 @@
+{% extends 'universite/base.html' %}
+{% load universite_tags %}
+{% block titre %}Références du laboratoire{% endblock %}
+{% block entete %}Références du laboratoire{% endblock %}
+{% block contenu %}
+<div class="bandeau p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h4 class="mb-1"><i class="bi bi-book me-2"></i>Trousse de référence</h4>
+            <span class="text-white-50">Pictogrammes de sécurité, formules essentielles et bonnes pratiques de laboratoire.</span>
+        </div>
+        <a href="{% url 'universite_labo' %}" class="btn btn-light btn-sm"><i class="bi bi-magic me-1"></i>Laboratoire</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card carte h-100">
+            <div class="card-header bg-white"><strong><i class="bi bi-shield-exclamation me-2 text-danger"></i>Pictogrammes de sécurité</strong></div>
+            <div class="card-body">
+                <div class="row g-2">
+                    {% for code, p in pictogrammes.items %}
+                    <div class="col-6">
+                        <div class="d-flex align-items-center gap-2 border rounded-3 p-2">
+                            <span class="badge text-bg-{{ p.2 }}" style="font-size:1.1rem"><i class="bi {{ p.1 }}"></i></span>
+                            <div class="small">
+                                <div class="fw-semibold">{{ p.0 }}</div>
+                                {% if code == 'toxique' %}<div class="text-muted">Peut entraîner des effets graves (n'ingérer ni inhaler).</div>
+                                {% elif code == 'corrosif' %}<div class="text-muted">Attaque les tissus et les métaux (gants, lunettes).</div>
+                                {% elif code == 'inflammable' %}<div class="text-muted">S'enflamme facilement (pas de flamme nue).</div>
+                                {% elif code == 'irritant' %}<div class="text-muted">Provoque des irritations cutanées ou oculaires.</div>
+                                {% elif code == 'environnement' %}<div class="text-muted">Dangereux pour l'environnement (ne pas jeter à l'évier).</div>
+                                {% elif code == 'rayonnement' %}<div class="text-muted">Rayonnement laser ou ionisant (protéger les yeux).</div>
+                                {% elif code == 'electrique' %}<div class="text-muted">Risque électrique (couper avant manipulation).</div>
+                                {% elif code == 'biologique' %}<div class="text-muted">Risque biologique (gants, désinfection).</div>
+                                {% else %}<div class="text-muted">Équipement de protection individuelle obligatoire.</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="alert alert-warning small mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i><strong>Règle d'or :</strong> en cas de doute sur un produit, ne pas manipuler avant d'avoir consulté la fiche de sécurité (FDS).
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card carte h-100">
+            <div class="card-header bg-white"><strong><i class="bi bi-calculator me-2 text-primary"></i>Formules essentielles</strong></div>
+            <div class="card-body">
+                <div class="accordion accordion-flush" id="acc-formules">
+                    <div class="accordion-item">
+                        <div class="accordion-header"><button class="accordion-button" data-bs-toggle="collapse" data-bs-target="#f-physique">Physique</button></div>
+                        <div id="f-physique" class="accordion-collapse collapse show" data-bs-parent="#acc-formules">
+                            <div class="accordion-body small">
+                                <div class="font-monospace">Pendule : T = 2π√(L/g)</div>
+                                <div class="font-monospace">Ressort : T = 2π√(m/k)</div>
+                                <div class="font-monospace">Chute libre : h = ½gt² ; v = √(2gh)</div>
+                                <div class="font-monospace">Projectile : R = v₀².sin(2θ)/g</div>
+                                <div class="font-monospace">Loi d'Ohm : U = R.I</div>
+                                <div class="font-monospace">Snell-Descartes : n₁.sin i = n₂.sin r</div>
+                                <div class="font-monospace">Gaz parfaits : PV = nRT</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <div class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#f-chimie">Chimie</button></div>
+                        <div id="f-chimie" class="accordion-collapse collapse" data-bs-parent="#acc-formules">
+                            <div class="accordion-body small">
+                                <div class="font-monospace">pH = -log₁₀[H₃O⁺] ; pH + pOH = 14</div>
+                                <div class="font-monospace">Beer-Lambert : A = ε.l.C</div>
+                                <div class="font-monospace">Cinétique ordre 1 : [A] = [A]₀.e^(-kt) ; t½ = ln2/k</div>
+                                <div class="font-monospace">Titrage : C_a.V_a = C_b.V_éq</div>
+                                <div class="font-monospace">Conservation : Σ atomes réactifs = Σ atomes produits</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <div class="accordion-header"><button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#f-bio">Biologie</button></div>
+                        <div id="f-bio" class="accordion-collapse collapse" data-bs-parent="#acc-formules">
+                            <div class="accordion-body small">
+                                <div class="font-monospace">Photosynthèse : 6CO₂ + 6H₂O + lumière → C₆H₁₂O₆ + 6O₂</div>
+                                <div class="font-monospace">Microscope : diamètre du champ = 5000 / G (µm)</div>
+                                <div class="font-monospace">Électrophorèse : d = a - b.log₁₀(M)</div>
+                                <div class="font-monospace">Arrhenius : ln(r) = ln(k₀) - (Ea/R)(1/T)</div>
+                                <div class="font-monospace">Q10 : r₂ = r₁.Q10^((T₂-T₁)/10)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card carte mt-3">
+            <div class="card-header bg-white"><strong><i class="bi bi-clipboard-check me-2 text-success"></i>Bonnes pratiques</strong></div>
+            <div class="card-body small">
+                <ul class="mb-0 ps-3">
+                    <li>Lire le protocole en entier avant de commencer.</li>
+                    <li>Noter chaque mesure immédiatement, avec son unité.</li>
+                    <li>Répéter la mesure au moins 3 fois et calculer la moyenne.</li>
+                    <li>Porter lunettes et gants dès qu'un pictogramme l'indique.</li>
+                    <li>Ne jamais goûter, sentir ou mélanger sans consigne.</li>
+                    <li>Ne jamais verser d'eau dans un acide concentré.</li>
+                    <li>Lors d'une régression, vérifier que r² est proche de 1 avant de conclure.</li>
+                    <li>Exprimer un résultat avec la bonne incertitude-type.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

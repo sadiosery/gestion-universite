@@ -1,0 +1,73 @@
+{% extends 'universite/base.html' %}
+{% block titre %}{{ filiere.nom }}{% endblock %}
+{% block entete %}{{ filiere.nom }}{% endblock %}
+{% block contenu %}
+<div class="card carte mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="mb-3">{{ filiere.code }} — {{ filiere.nom }}</h5>
+                <div class="text-muted">
+                    <i class="bi bi-diagram-3 me-1"></i>{{ filiere.departement.nom }} · {{ filiere.departement.faculte.nom }}<br>
+                    <i class="bi bi-mortarboard me-1"></i>Niveau {{ filiere.get_niveau_display }} — Durée : {{ filiere.duree_annees }} an(s)
+                </div>
+                {% if filiere.description %}<p class="mt-2">{{ filiere.description }}</p>{% endif %}
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="display-6 text-primary">{{ filiere.effectif }}</div>
+                <small class="text-muted">étudiants actifs</small>
+                <div class="mt-2">
+                    <a href="{% url 'universite_filiere_update' filiere.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Modifier</a>
+                    <a href="{% url 'universite_filiere_delete' filiere.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Supprimer</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card carte h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-journal-bookmark me-2 text-primary"></i>Unités d'enseignement</strong>
+                <a href="{% url 'universite_ue_create' %}" class="btn btn-sm btn-outline-primary">Ajouter</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Code</th><th>Intitulé</th><th>Semestre</th><th>Crédits</th><th>Type</th></tr></thead>
+                    <tbody>
+                        {% for ue in ues %}
+                        <tr>
+                            <td><a href="{% url 'universite_ue_detail' ue.pk %}">{{ ue.code }}</a></td>
+                            <td>{{ ue.nom }}</td>
+                            <td>{{ ue.semestre.nom }}</td>
+                            <td><span class="badge bg-primary-subtle text-primary-emphasis">{{ ue.credits }} ECTS</span></td>
+                            <td>{{ ue.get_type_display }}</td>
+                        </tr>
+                        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucune UE</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card carte h-100">
+            <div class="card-header bg-white"><strong><i class="bi bi-people me-2 text-success"></i>Étudiants actifs</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Nom</th><th>Matricule</th><th>Niveau</th></tr></thead>
+                    <tbody>
+                        {% for ins in inscriptions %}
+                        <tr>
+                            <td><a href="{% url 'universite_etudiant_detail' ins.etudiant.pk %}">{{ ins.etudiant.nom }} {{ ins.etudiant.prenom }}</a></td>
+                            <td>{{ ins.etudiant.matricule }}</td>
+                            <td>L{{ ins.niveau_annee }}</td>
+                        </tr>
+                        {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">Aucun étudiant</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

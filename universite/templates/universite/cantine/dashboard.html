@@ -1,0 +1,109 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Cantine universitaire{% endblock %}
+{% block entete %}Cantine universitaire{% endblock %}
+{% block contenu %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card stat-card grad-cantine text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Chiffre d'affaires</span><i class="bi bi-cash-stack fs-5"></i></div>
+        <h4 class="mb-0">{{ chiffre }} {{ universite_parametres.devise_code }}</h4>
+        <small class="text-white-50">{{ nb_commandes }} commandes servies</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card bg-primary text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Comptes actifs</span><i class="bi bi-wallet2 fs-5"></i></div>
+        <h4 class="mb-0">{{ comptes|length }}</h4>
+        <small class="text-white-50">portefeuilles étudiants</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card bg-info text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Solde total</span><i class="bi bi-piggy-bank fs-5"></i></div>
+        <h4 class="mb-0">{{ solde_total }} {{ universite_parametres.devise_code }}</h4>
+        <small class="text-white-50">rechargé dans les comptes</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card grad-sco text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Menus aujourd'hui</span><i class="bi bi-cup-hot fs-5"></i></div>
+        <h4 class="mb-0">{{ menus|length }}</h4>
+        <small class="text-white-50">du {{ aujourdhui|date:'d/m/Y' }}</small>
+    </div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card carte mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-ui-checks me-2 text-warning"></i>Menu du jour</strong>
+                <a href="{% url 'universite_menus' %}" class="btn btn-sm btn-outline-warning">Gérer</a>
+            </div>
+            <div class="card-body">
+                {% for m in menus %}
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <div>
+                        <span class="badge bg-warning-subtle text-warning-emphasis">{{ m.get_type_display }}</span>
+                        <strong>{{ m.plat.nom }}</strong>
+                        <small class="d-block text-muted">{{ m.plat.calories }} kcal · {{ m.plat.prix }} {{ universite_parametres.devise_code }}</small>
+                    </div>
+                    {% if m.plat.vegetarien %}<i class="bi bi-leaf text-success"></i>{% endif %}
+                </div>
+                {% empty %}<p class="text-muted mb-0">Aucun menu programmé aujourd'hui.</p>{% endfor %}
+                <div class="mt-3">
+                    <a href="{% url 'universite_menu_create' %}" class="btn btn-sm btn-warning w-100"><i class="bi bi-plus-lg me-1"></i>Ajouter un menu</a>
+                </div>
+            </div>
+        </div>
+        <div class="card carte">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-basket me-2 text-success"></i>Plats à la carte</strong>
+                <a href="{% url 'universite_plats' %}" class="btn btn-sm btn-outline-success">Carte</a>
+            </div>
+            <div class="card-body py-2">
+                <a href="{% url 'universite_plat_create' %}" class="btn btn-sm btn-outline-primary w-100 mb-2"><i class="bi bi-plus-lg me-1"></i>Nouveau plat</a>
+                <a href="{% url 'universite_comptes' %}" class="btn btn-sm btn-outline-info w-100"><i class="bi bi-wallet2 me-1"></i>Comptes étudiants</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card carte mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-receipt-cutoff me-2 text-primary"></i>Dernières commandes</strong>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'universite_cantine_service' %}" class="btn btn-sm btn-warning fw-bold"><i class="bi bi-upc-scan me-1"></i>Poste de service</a>
+                    <a href="{% url 'universite_commandes' %}" class="btn btn-sm btn-outline-primary">Toutes</a>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Date</th><th>Étudiant</th><th>Plat</th><th class="text-end">Montant</th></tr></thead>
+                    <tbody>
+                        {% for cm in commandes %}
+                        <tr>
+                            <td>{{ cm.date|date:'d/m/Y H:i' }}</td>
+                            <td>{{ cm.compte.etudiant.nom }} {{ cm.compte.etudiant.prenom }}</td>
+                            <td>{{ cm.plat.nom }}</td>
+                            <td class="text-end"><strong>{{ cm.montant }} {{ universite_parametres.devise_code }}</strong></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune commande aujourd'hui</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card carte">
+            <div class="card-header bg-white"><strong><i class="bi bi-wallet2 me-2 text-success"></i>Solde des comptes</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Étudiant</th><th>Carte</th><th class="text-end">Solde</th><th class="text-end">Statut</th></tr></thead>
+                    <tbody>
+                        {% for cc in comptes %}
+                        <tr>
+                            <td><a href="{% url 'universite_compte_detail' cc.pk %}">{{ cc.etudiant.nom }} {{ cc.etudiant.prenom }}</a></td>
+                            <td class="text-muted">{{ cc.code_carte }}</td>
+                            <td class="text-end"><strong>{{ cc.solde }} {{ universite_parametres.devise_code }}</strong></td>
+                            <td class="text-end"><span class="badge bg-{% if cc.solde > 0 %}success{% else %}danger{% endif %}">{% if cc.solde > 0 %}Opérationnel{% else %}Solde nul{% endif %}</span></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun compte</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

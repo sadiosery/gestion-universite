@@ -1,0 +1,78 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Rapports — {{ annee.libelle }}{% endblock %}
+{% block entete %}Rapports de l'année {{ annee.libelle }}{% endblock %}
+{% block contenu %}
+<div class="bandeau p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h4 class="mb-1"><i class="bi bi-graph-up me-2"></i>Synthèse de l'activité universitaire</h4>
+            <span class="text-white-50">Effectifs, pédagogie, scolarité et services — vue consolidée {{ annee.libelle }}.</span>
+        </div>
+        <button onclick="window.print()" class="btn btn-light btn-sm"><i class="bi bi-printer me-1"></i>Imprimer / PDF</button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card stat-card grad-sco text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Effectif total</span><i class="bi bi-people fs-5"></i></div>
+        <h3 class="mb-0">{{ total_etudiants }}</h3><small class="text-white-50">{{ par_faculte|length }} facultés</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card bg-primary text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Encaissé scolarité</span><i class="bi bi-cash-coin fs-5"></i></div>
+        <h3 class="mb-0">{{ total_paye }}</h3><small class="text-white-50">{{ universite_parametres.devise_code }}</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card grad-cantine text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Cantine (hors annulations)</span><i class="bi bi-cup-hot fs-5"></i></div>
+        <h3 class="mb-0">{{ total_cantine }}</h3><small class="text-white-50">{{ universite_parametres.devise_code }}</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card bg-warning text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Prêts en retard</span><i class="bi bi-exclamation-triangle fs-5"></i></div>
+        <h3 class="mb-0">{{ prets_retard }}</h3><small class="text-white-50">{{ absences }} absences</small>
+    </div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card carte h-100">
+            <div class="card-header bg-white"><strong><i class="bi bi-building me-2 text-primary"></i>Effectifs par faculté</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Faculté</th><th class="text-end">Étudiants actifs</th><th style="width:130px"></th></tr></thead>
+                    <tbody>
+                        {% for f in par_faculte %}
+                        <tr>
+                            <td>{{ f.faculte.nom }}</td>
+                            <td class="text-end fw-bold">{{ f.effectif }}</td>
+                            <td>
+                                {% widthratio f.effectif total_etudiants 100 as pct %}
+                                {% if total_etudiants %}
+                                <div class="progress" style="height:6px"><div class="progress-bar bg-primary" style="width:{{ pct }}%"></div></div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">Aucune faculté</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card carte h-100">
+            <div class="card-header bg-white"><strong><i class="bi bi-mortarboard me-2 text-success"></i>Répartition par filière</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Filière</th><th class="text-end">Inscrits</th></tr></thead>
+                    <tbody>
+                        {% for f in par_filiere %}
+                        <tr>
+                            <td>{{ f.filiere__nom }}</td>
+                            <td class="text-end fw-bold"><span class="badge bg-success">{{ f.n }}</span></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="2" class="text-center text-muted py-3">Aucune inscription active</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

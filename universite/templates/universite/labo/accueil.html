@@ -1,0 +1,93 @@
+{% extends 'universite/base.html' %}
+{% load universite_tags %}
+{% block titre %}Laboratoire virtuel interactif{% endblock %}
+{% block entete %}Laboratoire virtuel interactif{% endblock %}
+{% block contenu %}
+<div class="bandeau p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h4 class="mb-1"><i class="bi bi-magic me-2"></i>Laboratoire virtuel</h4>
+            <span class="text-white-50">16 simulations interactives de physique, chimie et biologie — expérimentez, collectez des mesures, analysez par régression linéaire, puis enregistrez votre rapport.</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'universite_labo_references' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-book me-1"></i>Références</a>
+            <a href="{% url 'universite_labo_rapports' %}" class="btn btn-light btn-sm"><i class="bi bi-journal-text me-1"></i>Mes rapports ({{ mes_rapports }})</a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    {% for value, label in disciplines %}
+    <div class="col-4">
+        <a href="{% url 'universite_labo' %}?discipline={{ value }}" class="text-decoration-none">
+            <div class="card carte h-100 border-{% if discipline == value %}{% if value == 'physique' %}primary{% elif value == 'chimie' %}danger{% else %}success{% endif %}{% else %}0{% endif %}" style="{% if discipline == value %}border-width:2px!important{% endif %}">
+                <div class="card-body d-flex align-items-center gap-3 py-3">
+                    <div class="rounded-3 p-3 text-white" style="background:{% if value == 'physique' %}#2563eb{% elif value == 'chimie' %}#dc2626{% else %}#16a34a{% endif %}">
+                        <i class="bi bi-{% if value == 'physique' %}activity{% elif value == 'chimie' %}droplet{% else %}flower1{% endif %}" style="font-size:1.3rem"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark">{{ label }}</div>
+                        <div class="text-muted small">{{ nb_par_discipline|get_item:value }} expérience(s)</div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="d-flex gap-2 mb-4 flex-wrap align-items-center">
+    <a href="{% url 'universite_labo' %}" class="btn btn-sm {% if not discipline and not niveau %}btn-dark{% else %}btn-outline-dark{% endif %}"><i class="bi bi-collection me-1"></i>Toutes</a>
+    {% for value, label in disciplines %}
+    <a href="{% url 'universite_labo' %}?discipline={{ value }}{% if niveau %}&niveau={{ niveau }}{% endif %}" class="btn btn-sm {% if discipline == value %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        <i class="bi bi-{% if value == 'physique' %}activity{% elif value == 'chimie' %}droplet{% else %}flower1{% endif %} me-1"></i>{{ label }}
+    </a>
+    {% endfor %}
+    <span class="text-muted small mx-2"><i class="bi bi-mortarboard me-1"></i>Niveau :</span>
+    <a href="{% url 'universite_labo' %}{% if discipline %}?discipline={{ discipline }}{% endif %}" class="btn btn-sm {% if not niveau %}btn-dark{% else %}btn-outline-dark{% endif %}">Tous</a>
+    {% for value, label in niveaux %}
+    <a href="{% url 'universite_labo' %}?{% if discipline %}discipline={{ discipline }}&{% endif %}niveau={{ value }}" class="btn btn-sm {% if niveau == value %}btn-secondary{% else %}btn-outline-secondary{% endif %}">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<div class="row g-3">
+    {% for exp in experiences %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card carte h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-1 align-items-center">
+                    <span class="badge bg-{% if exp.discipline == 'physique' %}primary{% elif exp.discipline == 'chimie' %}danger{% else %}success{% endif %}">
+                        <i class="bi bi-{% if exp.discipline == 'physique' %}activity{% elif exp.discipline == 'chimie' %}droplet{% else %}flower1{% endif %} me-1"></i>{{ exp.get_discipline_display }}
+                    </span>
+                    <span class="badge bg-light text-dark border">{{ exp.get_niveau_display }}</span>
+                </div>
+                <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ exp.duree_minutes }} min</span>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <h6 class="fw-bold mb-1">{{ exp.titre }}</h6>
+                <div class="small text-warning-dark mb-2">
+                    <span class="text-muted">Difficulté :</span> {{ exp.difficulte|etoiles }}
+                </div>
+                <p class="small text-muted mb-3 flex-grow-1">{{ exp.objectif|truncatechars:115 }}</p>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'universite_labo_experience' exp.slug %}" class="btn btn-sm btn-{% if exp.discipline == 'physique' %}primary{% elif exp.discipline == 'chimie' %}danger{% else %}success{% endif %} flex-grow-1">
+                        <i class="bi bi-play-fill me-1"></i>Lancer
+                    </a>
+                    {% if exp.pictos_liste %}
+                    <span class="align-self-center" title="{% for p in exp.pictos_liste %}{{ p.0 }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                        {% for p in exp.pictos_liste|slice:":2" %}<i class="bi {{ p.1 }} text-{{ p.2 }}"></i>{% endfor %}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12"><div class="card carte"><div class="card-body text-center text-muted py-5">
+        <i class="bi bi-magic" style="font-size:2.5rem"></i>
+        <h6 class="mt-2">Aucune expérience disponible pour ce filtre</h6>
+        {% if request.user.is_superuser %}<a href="{% url 'admin:universite_experiencelabo_add' %}" class="btn btn-sm btn-outline-primary mt-2">Ajouter via l'administration</a>{% endif %}
+    </div></div></div>
+    {% endfor %}
+</div>
+{% endblock %}

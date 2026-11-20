@@ -1,0 +1,65 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Relevé de notes — {{ etudiant.nom_complet }}{% endblock %}
+{% block entete %}Relevé de notes{% endblock %}
+{% block contenu %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <span class="text-muted">{{ etudiant.nom }} {{ etudiant.prenom }} — {{ etudiant.matricule }}</span>
+    <button class="btn btn-outline-primary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimer</button>
+</div>
+
+<div class="card carte mb-4">
+    <div class="card-body text-center">
+        <h5 class="mb-1">{{ universite_parametres.nom_universite }}</h5>
+        <div class="text-muted">{{ universite_parametres.sigle }} · {{ universite_parametres.adresse }}</div>
+        <hr>
+        <h6>Relevé de notes — Licence (système LMD)</h6>
+        <div class="small text-muted">Étudiant : <strong>{{ etudiant.nom }} {{ etudiant.prenom }}</strong> · Matricule : {{ etudiant.matricule }} · Filière : {{ etudiant.filiere.nom }}</div>
+    </div>
+</div>
+
+{% for bloc in semestres %}
+<div class="card carte mb-3">
+    <div class="card-header bg-white">
+        <strong>{{ bloc.semestre.nom }}</strong>
+        <span class="text-muted small ms-2">{{ bloc.semestre.annee.libelle }}</span>
+        {% if bloc.moyenne %}
+            <span class="badge bg-{% if bloc.moyenne >= 10 %}success{% else %}danger{% endif %} float-end">Moyenne : {{ bloc.moyenne }}/20</span>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light"><tr><th>Code</th><th>UE</th><th>Crédits</th><th>Moyenne</th><th>Décision</th></tr></thead>
+            <tbody>
+                {% for ligne in bloc.lignes %}
+                <tr>
+                    <td>{{ ligne.ue.code }}</td>
+                    <td>{{ ligne.ue.nom }}</td>
+                    <td>{{ ligne.ue.credits }} ECTS</td>
+                    <td>
+                        {% if ligne.moyenne %}
+                            <span class="badge bg-{% if ligne.moyenne >= 10 %}success{% else %}danger{% endif %}">{{ ligne.moyenne }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if ligne.decision %}
+                            <span class="badge bg-{% if ligne.decision.decision == 'valide' %}success{% elif ligne.decision.decision == 'compense' %}info{% else %}danger{% endif %}">{{ ligne.decision.get_decision_display }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% empty %}
+<div class="card carte"><div class="card-body text-center text-muted py-4">Aucun relevé disponible. Saisissez des notes puis lancez la délibération.</div></div>
+{% endfor %}
+
+<div class="card carte grad-sco text-white">
+    <div class="card-body d-flex justify-content-around text-center flex-wrap gap-2">
+        <div><div class="small text-white-50">CGPA</div><div class="fs-3 fw-bold">{{ cgpa }}/20</div></div>
+        <div><div class="small text-white-50">UE validées</div><div class="fs-3 fw-bold">{{ nb_valid }}</div></div>
+        <div><div class="small text-white-50">Crédits acquis</div><div class="fs-3 fw-bold">{{ credits }} ECTS</div></div>
+    </div>
+</div>
+{% endblock %}

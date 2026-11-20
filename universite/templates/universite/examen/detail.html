@@ -1,0 +1,47 @@
+{% extends 'universite/base.html' %}
+{% block titre %}{{ examen.nom }}{% endblock %}
+{% block entete %}{{ examen.nom }}{% endblock %}
+{% block contenu %}
+<div class="card carte mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <span class="badge bg-info me-2">{{ examen.get_session_display }}</span>
+                <span class="badge bg-{% if examen.statut == 'programme' %}primary{% elif examen.statut == 'en_cours' %}warning{% elif examen.statut == 'termine' %}success{% else %}secondary{% endif %}">{{ examen.get_statut_display }}</span>
+                <div class="text-muted mt-2">{{ examen.annee.libelle }} · Du {{ examen.date_debut|date:'d/m/Y' }}{% if examen.date_fin %} au {{ examen.date_fin|date:'d/m/Y' }}{% endif %}</div>
+                {% if examen.description %}<p class="mt-2 mb-0">{{ examen.description }}</p>{% endif %}
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'universite_epreuve_create' examen.pk %}" class="btn btn-sm btn-primary"><i class="bi bi-journal-plus me-1"></i>Ajouter une épreuve</a>
+                <a href="{% url 'universite_examen_update' examen.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Modifier</a>
+                <a href="{% url 'universite_examen_delete' examen.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Supprimer</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card carte">
+    <div class="card-header bg-white"><strong><i class="bi bi-journal-bookmark me-2 text-primary"></i>Épreuves</strong></div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>UE</th><th>Date</th><th>Heure</th><th>Durée</th><th>Salle</th><th>Surveillants</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for ep in epreuves %}
+                <tr>
+                    <td><strong>{{ ep.ue.code }}</strong> — {{ ep.ue.nom }}</td>
+                    <td>{{ ep.date|date:'d/m/Y' }}</td>
+                    <td>{{ ep.heure_debut|time:'H:i' }}</td>
+                    <td>{{ ep.duree }} min</td>
+                    <td>{{ ep.salle.nom|default:'—' }}</td>
+                    <td>{% for s in ep.surveillants.all %}<span class="badge bg-secondary-subtle text-secondary-emphasis me-1">{{ s.nom }}</span>{% empty %}—{% endfor %}</td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'universite_epreuve_convoquer' ep.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-person-check me-1"></i>Convocation</a>
+                        <a href="{% url 'universite_epreuve_delete' ep.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Supprimer</a>
+                    </td>
+                </tr>
+                {% empty %}<tr><td colspan="7" class="text-center text-muted py-4">Aucune épreuve planifiée</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

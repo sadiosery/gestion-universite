@@ -1,0 +1,43 @@
+{% extends 'universite/base.html' %}
+{% block titre %}{{ titre }} — Gestion universitaire{% endblock %}
+{% block entete %}{{ titre }}{% endblock %}
+{% block contenu %}
+<div class="card carte">
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span><i class="bi {{ icone }} me-2 text-primary"></i><strong>{{ titre }}</strong>
+        {% if sous_titre %}<span class="text-muted small ms-2">{{ sous_titre }}</span>{% endif %}</span>
+        {% if bouton %}
+        <a href="{{ bouton_url }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>{{ bouton }}
+        </a>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>{% for col in colonnes %}<th>{{ col }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>
+                {% for ligne in lignes %}
+                <tr>
+                    {% for cellule in ligne %}
+                        {% if cellule.badge %}
+                            <td><span class="badge bg-{{ cellule.badge }}">{{ cellule.texte }}</span></td>
+                        {% elif cellule.url %}
+                            <td><a href="{{ cellule.url }}">{{ cellule.texte }}</a></td>
+                        {% else %}
+                            <td>{{ cellule }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{{ colonnes|length }}" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox me-1"></i>Aucun enregistrement
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% block pied %}{% endblock %}
+</div>
+{% endblock %}

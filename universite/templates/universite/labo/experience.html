@@ -1,0 +1,1921 @@
+{% extends 'universite/base.html' %}
+{% block titre %}{{ experience.titre }} — Laboratoire virtuel{% endblock %}
+{% block entete %}{{ experience.titre }}{% endblock %}
+{% block styles %}
+<style>
+    canvas#sim-canvas { background: #fff; border-radius: 12px; border: 2px solid #e2e8f0; width: 100%; height: 420px; display: block; }
+    canvas#graph-analyse { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; width: 100%; height: 300px; display: block; }
+    .etiquette { position: absolute; top: 10px; left: 14px; background: rgba(255,255,255,.92); border-radius: 8px; padding: 6px 12px; font-size: .8rem; z-index: 2; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+    .grid-ctr { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .6rem 1.1rem; }
+    .ctl-item label { font-size: .76rem; color: #475569; margin-bottom: .15rem; display: block; }
+    .ctl-item input[type="range"] { width: 100%; }
+    .ctl-val { font-family: 'Consolas', monospace; font-weight: 700; color: #0f172a; font-size: .8rem; }
+    .lecture { border-bottom: 1px dashed #e2e8f0; padding: .35rem 0; display: flex; justify-content: space-between; gap: .5rem; font-size: .85rem; }
+    .lecture:last-child { border: none; }
+    .lecture .nom { color: #475569; }
+    .lecture .valeur { font-weight: 700; font-family: 'Consolas', monospace; color: #0f172a; white-space: nowrap; }
+    .table-donnees { font-family: 'Consolas', monospace; font-size: .8rem; }
+    .table-donnees th, .table-donnees td { padding: .3rem .5rem; text-align: right; }
+    .table-donnees th { background: #f1f5f9; color: #334155; }
+    .toast-labo { position: fixed; top: 76px; right: 20px; z-index: 2000; min-width: 260px; }
+    .picto-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .25rem .6rem; border-radius: 50rem; font-size: .72rem; font-weight: 600; }
+    .resultat-anal { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: .75rem 1rem; font-family: 'Consolas', monospace; font-size: .82rem; white-space: pre-line; }
+    .stat-card { text-align: center; padding: .5rem; border-radius: 10px; background: #f1f5f9; }
+    .stat-card .grand { font-size: 1.15rem; font-weight: 800; font-family: 'Consolas', monospace; color: #0f172a; }
+    .stat-card .petit { font-size: .68rem; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+    .ligne-theo { font-family: 'Consolas', monospace; background: #0f172a; color: #e2e8f0; padding: .55rem 1rem; border-radius: 10px; font-size: .9rem; }
+    .nav-labo .nav-link { font-size: .85rem; font-weight: 600; }
+    .nav-labo .nav-link.active { background: #0f172a; color: #fff; }
+    .proto-num { width: 24px; height: 24px; border-radius: 50%; background: #eef2ff; color: #4338ca; display: inline-flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 700; flex: none; }
+</style>
+{% endblock %}
+{% block contenu %}
+{% load universite_tags %}
+
+<div class="card carte mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between flex-wrap gap-2">
+            <div>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <span class="badge bg-{% if experience.discipline == 'physique' %}primary{% elif experience.discipline == 'chimie' %}danger{% else %}success{% endif %}">
+                        <i class="bi bi-{% if experience.discipline == 'physique' %}activity{% elif experience.discipline == 'chimie' %}droplet{% else %}flower1{% endif %} me-1"></i>{{ experience.get_discipline_display }}
+                    </span>
+                    <span class="badge bg-dark"><i class="bi bi-mortarboard me-1"></i>{{ experience.get_niveau_display }}</span>
+                    <span class="badge bg-{% if experience.difficulte == 1 %}success{% elif experience.difficulte == 2 %}warning text-dark{% else %}danger{% endif %}">
+                        <i class="bi bi-bar-chart me-1"></i>{% for i in ""|center:experience.difficulte %}★{% endfor %}
+                    </span>
+                    <span class="badge bg-light text-dark border"><i class="bi bi-clock me-1"></i>{{ experience.duree_minutes }} min</span>
+                    {% for picto in experience.pictos_liste %}
+                    <span class="badge text-bg-{{ picto.2 }} picto-badge" data-bs-toggle="tooltip" title="{{ picto.0 }}">
+                        <i class="bi {{ picto.1 }}"></i>{{ picto.0 }}
+                    </span>
+                    {% endfor %}
+                </div>
+                <h5 class="mb-1">{{ experience.titre }}</h5>
+                <div class="text-muted small"><i class="bi bi-bullseye me-1"></i>{{ experience.objectif }}</div>
+            </div>
+            <a href="{% url 'universite_labo' %}" class="btn btn-sm btn-outline-secondary align-self-start"><i class="bi bi-arrow-left me-1"></i>Retour au laboratoire</a>
+        </div>
+
+        <div class="row mt-3 g-3">
+            {% if experience.protocole %}
+            <div class="col-md-7">
+                <div class="bg-secondary-subtle text-secondary-emphasis p-3 rounded-3 h-100">
+                    <i class="bi bi-list-ol me-1"></i><strong>Protocole expérimental</strong>
+                    <div class="mt-2 d-flex flex-column gap-1">
+                        {% for etape in experience.protocole|split:"\n" %}
+                        <div class="d-flex align-items-start gap-2">
+                            <span class="proto-num">{{ forloop.counter }}</span>
+                            <span class="small">{{ etape }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if experience.consignes %}
+            <div class="col-md-5">
+                <div class="bg-warning-subtle text-warning-emphasis p-3 rounded-3 h-100">
+                    <i class="bi bi-shield-exclamation me-1"></i><strong>Sécurité</strong>
+                    <div class="small mt-1">{{ experience.consignes }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if experience.formule %}
+        <div class="mt-3 ligne-theo"><i class="bi bi-calculator me-2"></i>{{ experience.formule }}</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card carte">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <strong><i class="bi bi-display me-2 text-primary"></i>Simulation</strong>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-dark" id="btn-pause" onclick="basculerPause()"><i class="bi bi-pause-fill me-1"></i>Pause</button>
+                    <button type="button" class="btn btn-sm btn-success" onclick="reinitialiser()"><i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div style="position:relative">
+                    <div class="etiquette" id="info-canvas">Prêt</div>
+                    <canvas id="sim-canvas" width="800" height="420"></canvas>
+                </div>
+                <hr class="my-3">
+                <div class="grid-ctr" id="zone-controles"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card carte mb-3">
+            <div class="card-header bg-white"><strong><i class="bi bi-activity me-2 text-success"></i>Mesures en direct</strong></div>
+            <div class="card-body py-2">
+                <div id="lectures"><div class="lecture"><span class="nom">Mesure</span><span class="valeur text-muted">en attente…</span></div></div>
+            </div>
+        </div>
+
+        <div class="card carte">
+            <div class="card-header bg-white"><strong><i class="bi bi-journal-text me-2 text-primary"></i>Fiche technique</strong></div>
+            <div class="card-body py-2 small">
+                {% if experience.notions_liste %}
+                <div class="mb-2">
+                    <div class="text-muted fw-semibold mb-1"><i class="bi bi-book me-1"></i>Notions clés</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for n in experience.notions_liste %}<span class="badge bg-light text-dark border">{{ n }}</span>{% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if experience.materiel_liste %}
+                <div class="mb-2">
+                    <div class="text-muted fw-semibold mb-1"><i class="bi bi-tools me-1"></i>Matériel</div>
+                    <ul class="mb-0 ps-3">
+                        {% for m in experience.materiel_liste %}<li>{{ m }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if experience.competences_liste %}
+                <div>
+                    <div class="text-muted fw-semibold mb-1"><i class="bi bi-patch-check me-1"></i>Compétences visées</div>
+                    <ul class="mb-0 ps-3">
+                        {% for c in experience.competences_liste %}<li>{{ c }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card carte mt-3">
+    <div class="card-header bg-white p-0">
+        <ul class="nav nav-tabs nav-labo border-0" id="labo-tabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-donnees" type="button"><i class="bi bi-table me-1"></i>Collecte de données</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-analyse" type="button"><i class="bi bi-graph-up me-1"></i>Analyse &amp; graphique</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rapport" type="button"><i class="bi bi-journal-check me-1"></i>Compte rendu</button></li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <!-- ============ ONGLET DONNÉES ============ -->
+            <div class="tab-pane fade show active" id="tab-donnees">
+                <div id="zone-qualitatif" style="display:none">
+                    <div class="alert alert-info mb-0 d-flex align-items-start gap-2">
+                        <i class="bi bi-info-circle-fill mt-1"></i>
+                        <div>Cette expérience est <strong>qualitative</strong> : elle ne produit pas de séries de mesures numériques à traiter. Renseignez vos observations dans l'onglet <strong>Compte rendu</strong>.</div>
+                    </div>
+                </div>
+                <div id="zone-quantitatif">
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="capturerMesure()"><i class="bi bi-plus-circle me-1"></i>Capturer la mesure actuelle</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="effacerDonnees()"><i class="bi bi-trash me-1"></i>Effacer</button>
+                        <span class="text-muted small ms-auto" id="compteur-donnees">0 mesure</span>
+                    </div>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered table-donnees mb-0" id="table-donnees">
+                            <thead><tr><th>#</th><th>Colonnes…</th></tr></thead>
+                            <tbody><tr><td colspan="2" class="text-muted text-start">Aucune mesure capturée — lancez la simulation puis cliquez sur « Capturer la mesure actuelle ».</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div id="zone-ajout-manuel">
+                        <div class="text-muted small fw-semibold mb-1"><i class="bi bi-pencil-square me-1"></i>Ajout manuel d'une mesure</div>
+                        <div class="d-flex flex-wrap gap-2 align-items-end" id="saisie-manuelle"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ ONGLET ANALYSE ============ -->
+            <div class="tab-pane fade" id="tab-analyse">
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Variable X</label>
+                            <select class="form-select form-select-sm" id="sel-x" onchange="majTransformes()"></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Transformation de X</label>
+                            <select class="form-select form-select-sm" id="trans-x"></select>
+                            <div class="form-text">Sélectionnez une linéarisation si nécessaire (T², 1/V, sin, log…).</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Variable Y</label>
+                            <select class="form-select form-select-sm" id="sel-y" onchange="majTransformes()"></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Transformation de Y</label>
+                            <select class="form-select form-select-sm" id="trans-y"></select>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-dark w-100" onclick="analyser()"><i class="bi bi-graph-up-arrow me-1"></i>Analyser et tracer</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100 mt-2" onclick="exporterCSV()"><i class="bi bi-download me-1"></i>Exporter les données (CSV)</button>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="row g-2 mb-2" id="stats-boite"></div>
+                        <canvas id="graph-analyse" width="760" height="300"></canvas>
+                        <div class="mt-2"><div class="resultat-anal" id="zone-analyse">Capturez d'abord des mesures dans l'onglet « Collecte de données ».</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ ONGLET COMPTE RENDU ============ -->
+            <div class="tab-pane fade" id="tab-rapport">
+                {% if etudiant %}
+                <form method="post" onsubmit="synchroniserRapport()">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Paramètres de la simulation</label>
+                            <textarea name="parametres" id="id-parametres" class="form-control form-control-sm" rows="3" readonly></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Résultats observés</label>
+                            <textarea name="resultats" id="id-resultats" class="form-control form-control-sm" rows="3" readonly></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Données de mesure (CSV)</label>
+                            <textarea name="donnees" id="id-donnees" class="form-control form-control-sm font-monospace" rows="4" readonly></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Analyse des données</label>
+                            <textarea name="analyse" id="id-analyse" class="form-control form-control-sm font-monospace" rows="4" readonly></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Mes observations</label>
+                            <textarea name="observations" class="form-control form-control-sm" rows="4" placeholder="Interprétez vos résultats, les sources d'erreurs, la démarche…"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Conclusion</label>
+                            <textarea name="conclusion" class="form-control form-control-sm" rows="4" placeholder="Que confirme ou infirme l'expérience ?"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Enregistrer le rapport</button>
+                        </div>
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Connectez-vous avec un compte <strong>étudiant</strong> pour enregistrer vos rapports d'expérience. La simulation, la collecte de données et l'analyse restent utilisables en mode démonstration.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-labo" id="toast-labo"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+'use strict';
+const SLUG = '{{ experience.slug }}';
+const canvas = document.getElementById('sim-canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let temps = 0, dernierT = 0, enCourse = true;
+
+// ------------------------------------------------------------------ helpers
+function lire(id) { const el = document.getElementById(id); return el ? parseFloat(el.value) : 0; }
+function lireBool(id) { const el = document.getElementById(id); return el ? el.checked : false; }
+function majLabel(id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; }
+function setInfo(html) { const el = document.getElementById('info-canvas'); if (el) el.innerHTML = html; }
+function notif(msg, ok) {
+    const t = document.getElementById('toast-labo');
+    if (!t) return;
+    t.innerHTML = '<div class="alert alert-' + (ok ? 'success' : 'warning') + ' alert-dismissible fade show py-2 small mb-0 shadow">' +
+        '<i class="bi bi-' + (ok ? 'check-circle' : 'exclamation-triangle') + ' me-1"></i>' + msg +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert" onclick="this.parentElement.remove()"></button></div>';
+    clearTimeout(t._h); t._h = setTimeout(() => { t.innerHTML = ''; }, 3200);
+}
+function e(fn) { return (arr) => arr.map(fn); }
+function derivee(arr, other) {
+    const out = [];
+    for (let i = 0; i < arr.length; i++) {
+        if (i === 0 || i === arr.length - 1) { out.push(null); }
+        else out.push((arr[i + 1] - arr[i - 1]) / (other[i + 1] - other[i - 1]));
+    }
+    return out;
+}
+
+// ------------------------------------------------------- rendu des contrôles
+function construireControles() {
+    const zone = document.getElementById('zone-controles');
+    if (!sim || !sim.controles) { zone.innerHTML = '<p class="text-muted mb-0">Aucun paramètre configurable.</p>'; return; }
+    let html = '';
+    for (const c of sim.controles()) {
+        if (c.type === 'checkbox') {
+            html += '<div class="ctl-item d-flex align-items-center gap-2"><div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="' + c.id + '" ' + (c.valeur ? 'checked' : '') + '><label class="form-check-label small" for="' + c.id + '">' + c.label + '</label></div></div>';
+        } else if (c.type === 'number') {
+            html += '<div class="ctl-item"><label>' + c.label + '</label><input type="number" id="' + c.id + '" min="0" max="9" step="1" value="' + c.valeur + '" class="form-control form-control-sm"></div>';
+        } else {
+            const val = c.format ? c.format(c.valeur) : c.valeur;
+            html += '<div class="ctl-item"><label>' + c.label + ' <span class="ctl-val" id="val-' + c.id + '">' + val + ' ' + (c.unite || '') + '</span></label>' +
+                '<input type="range" id="' + c.id + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" value="' + c.valeur + '"></div>';
+        }
+    }
+    zone.innerHTML = html;
+    for (const c of sim.controles()) {
+        const el = document.getElementById(c.id);
+        if (!el) continue;
+        el.addEventListener(c.type === 'checkbox' ? 'change' : 'input', () => {
+            if (c.type === 'checkbox') { if (c.onchange) c.onchange(el.checked); return; }
+            const v = parseFloat(el.value);
+            majLabel('val-' + c.id, (c.format ? c.format(v) : v) + ' ' + (c.unite || ''));
+            if (c.onchange) c.onchange(v);
+            else if (c.reinit && sim.init) { sim.init(); }
+        });
+    }
+}
+
+// -------------------------------------------------------- mesures en direct
+function afficherLectures(items) {
+    let html = '';
+    for (const m of items) {
+        let v = typeof m.valeur === 'number' ? m.valeur.toPrecision(4).replace(/\.?0+$/, '') : m.valeur;
+        html += '<div class="lecture"><span class="nom">' + m.nom + '</span><span class="valeur">' + v + (m.unite ? ' ' + m.unite : '') + '</span></div>';
+    }
+    document.getElementById('lectures').innerHTML = html || '<div class="lecture"><span class="nom">—</span><span class="valeur">—</span></div>';
+}
+
+// ------------------------------------------------------------- collecte de données
+const donnees = { colonnes: [], lignes: [] };
+let texteAnalyse = '';
+
+function capturerMesure() {
+    if (!sim || sim.mesurable === false) { notif('Expérience qualitative : utilisez le champ Observations du compte rendu.'); return; }
+    const m = sim.mesures ? sim.mesures() : null;
+    if (!m || !m.length) { notif('Aucune mesure à capturer pour le moment.'); return; }
+    if (!donnees.colonnes.length) {
+        donnees.colonnes = m.map(o => ({ nom: o.nom, unite: o.unite || '' }));
+        remplirSelects();
+        document.getElementById('compteur-donnees').textContent = '0 mesure';
+    }
+    donnees.lignes.push(m.map(o => parseFloat(o.valeur)));
+    dessinerTableau();
+    notif('Mesure n°' + donnees.lignes.length + ' capturée.', true);
+}
+
+function dessinerTableau() {
+    const table = document.getElementById('table-donnees');
+    if (!donnees.colonnes.length) {
+        table.innerHTML = '<thead><tr><th>#</th><th>Colonnes…</th></tr></thead><tbody><tr><td colspan="2" class="text-muted text-start">Aucune mesure capturée.</td></tr></tbody>';
+        return;
+    }
+    let thead = '<thead><tr><th>#</th>';
+    for (const c of donnees.colonnes) thead += '<th>' + c.nom + (c.unite ? ' <span class="text-muted fw-normal">(' + c.unite + ')</span>' : '') + '</th>';
+    thead += '</tr></thead>';
+    let tbody = '<tbody>';
+    donnees.lignes.forEach((l, i) => {
+        tbody += '<tr><td>' + (i + 1) + '</td>';
+        l.forEach(v => { tbody += '<td>' + (isFinite(v) ? +v.toPrecision(6) : '—') + '</td>'; });
+        tbody += '</tr>';
+    });
+    if (!donnees.lignes.length) tbody += '<tr><td colspan="' + (donnees.colonnes.length + 1) + '" class="text-muted text-start">Aucune mesure capturée.</td></tr>';
+    tbody += '</tbody>';
+    table.innerHTML = thead + tbody;
+    document.getElementById('compteur-donnees').textContent = donnees.lignes.length + (donnees.lignes.length > 1 ? ' mesures' : ' mesure');
+    dessinerSaisieManuelle();
+}
+
+function dessinerSaisieManuelle() {
+    const zone = document.getElementById('saisie-manuelle');
+    if (!donnees.colonnes.length) { zone.innerHTML = '<span class="text-muted small">Capturez d\'abord une mesure pour définir les colonnes.</span>'; return; }
+    let html = '';
+    donnees.colonnes.forEach((c, i) => {
+        html += '<div><label class="form-label small mb-0">' + c.nom + (c.unite ? ' (' + c.unite + ')' : '') + '</label>' +
+            '<input type="number" step="any" class="form-control form-control-sm saisie-col" data-col="' + i + '" style="width:110px"></div>';
+    });
+    html += '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="ajouterManuel()"><i class="bi bi-plus-lg me-1"></i>Ajouter</button>';
+    zone.innerHTML = html;
+}
+
+function ajouterManuel() {
+    if (!donnees.colonnes.length) return;
+    const ligne = [];
+    document.querySelectorAll('.saisie-col').forEach(inp => ligne.push(parseFloat(inp.value) || 0));
+    donnees.lignes.push(ligne);
+    dessinerTableau();
+    notif('Ligne ajoutée manuellement.', true);
+}
+
+function effacerDonnees() {
+    donnees.colonnes = []; donnees.lignes = []; texteAnalyse = '';
+    document.getElementById('zone-analyse').textContent = 'Capturez d\'abord des mesures.';
+    document.getElementById('stats-boite').innerHTML = '';
+    const g = document.getElementById('graph-analyse').getContext('2d');
+    g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    dessinerTableau(); remplirSelects();
+    notif('Données effacées.');
+}
+
+// ------------------------------------------------------------- analyse des données
+const TRANSFO_IDENTITE = { label: 'Sans transformation', fn: (arr) => arr };
+
+function remplirSelects() {
+    const sx = document.getElementById('sel-x'), sy = document.getElementById('sel-y');
+    sx.innerHTML = ''; sy.innerHTML = '';
+    donnees.colonnes.forEach((c, i) => {
+        sx.innerHTML += '<option value="' + i + '">' + c.nom + (c.unite ? ' (' + c.unite + ')' : '') + '</option>';
+        sy.innerHTML += '<option value="' + i + '">' + c.nom + (c.unite ? ' (' + c.unite + ')' : '') + '</option>';
+    });
+    if (donnees.colonnes.length > 1) sy.selectedIndex = 1;
+    majTransformes();
+}
+
+function transformesPour(colIndex) {
+    const col = donnees.colonnes[colIndex];
+    return (sim && sim.transformes && col && sim.transformes[col.nom]) || {};
+}
+
+function majTransformes() {
+    const tx = document.getElementById('trans-x'), ty = document.getElementById('trans-y');
+    tx.innerHTML = '<option value="">Sans transformation</option>';
+    ty.innerHTML = '<option value="">Sans transformation</option>';
+    const ix = parseInt(document.getElementById('sel-x').value);
+    const iy = parseInt(document.getElementById('sel-y').value);
+    for (const [label] of Object.entries(transformesPour(ix))) tx.innerHTML += '<option value="' + label + '">' + label + '</option>';
+    for (const [label] of Object.entries(transformesPour(iy))) ty.innerHTML += '<option value="' + label + '">' + label + '</option>';
+}
+
+function fonctionTransforme(colIndex, select) {
+    const nom = select.value;
+    if (!nom) return TRANSFO_IDENTITE.fn;
+    const t = transformesPour(colIndex)[nom];
+    return t || TRANSFO_IDENTITE.fn;
+}
+
+function analyser() {
+    if (!donnees.lignes.length || !donnees.colonnes.length) { notif('Capturez d\'abord des mesures.'); return; }
+    const ix = parseInt(document.getElementById('sel-x').value);
+    const iy = parseInt(document.getElementById('sel-y').value);
+    const fx = fonctionTransforme(ix, document.getElementById('trans-x'));
+    const fy = fonctionTransforme(iy, document.getElementById('trans-y'));
+    const xsRaw = donnees.lignes.map(l => l[ix]);
+    const ysRaw = donnees.lignes.map(l => l[iy]);
+    const xs = fx(xsRaw, ysRaw);
+    const ys = fy(ysRaw, xsRaw);
+    const pts = [];
+    for (let i = 0; i < xs.length; i++) if (isFinite(xs[i]) && isFinite(ys[i])) pts.push([xs[i], ys[i]]);
+    if (pts.length < 2) { notif('Il faut au moins 2 mesures valides.'); return; }
+    const reg = regresser(pts);
+    let txt = 'Mesures analysées : n = ' + pts.length + '\n';
+    txt += 'Moyenne (y) : ' + reg.my.toFixed(4) + '\n';
+    txt += 'Écart-type (y) : ' + reg.sdY.toFixed(4) + '\n';
+    txt += 'Incertitude-type : u = ' + reg.uY.toFixed(4) + '\n\n';
+    txt += 'Régression linéaire  Y = a.X + b\n';
+    txt += 'a = ' + reg.a.toFixed(4) + '\n';
+    txt += 'b = ' + reg.b.toFixed(4) + '\n';
+    txt += 'Coefficient de corrélation r = ' + reg.r.toFixed(4) + '\n';
+    txt += 'Coefficient de détermination r² = ' + reg.r2.toFixed(4) + ' (' + (reg.r2 * 100).toFixed(1) + ' % de variance expliquée)\n';
+    if (sim && sim.interpreter) {
+        const interp = sim.interpreter(reg);
+        if (interp) txt += '\n' + interp;
+    }
+    texteAnalyse = txt;
+    document.getElementById('zone-analyse').textContent = txt;
+    document.getElementById('stats-boite').innerHTML =
+        stat('n', pts.length) + stat('a (pente)', reg.a.toFixed(4)) + stat('b (ordonnée)', reg.b.toFixed(4)) +
+        stat('r', reg.r.toFixed(4)) + stat('r²', (reg.r2 * 100).toFixed(1) + ' %') + stat('u(y)', reg.uY.toFixed(4));
+    dessinerGraph(pts, reg.a, reg.b, libelleAxe(ix, document.getElementById('trans-x')), libelleAxe(iy, document.getElementById('trans-y')));
+    synchroniserRapport();
+    notif('Analyse calculée.', true);
+}
+
+function stat(petit, grand) {
+    return '<div class="col-2"><div class="stat-card"><div class="grand">' + grand + '</div><div class="petit">' + petit + '</div></div></div>';
+}
+
+function libelleAxe(idx, select) {
+    const c = donnees.colonnes[idx];
+    let nom = c.nom + (c.unite ? ' (' + c.unite + ')' : '');
+    if (select.value) nom = select.value + ' de ' + c.nom + (c.unite ? ' (' + c.unite + ')' : '');
+    return nom;
+}
+
+function regresser(pts) {
+    const n = pts.length;
+    let mx = 0, my = 0;
+    for (const p of pts) { mx += p[0]; my += p[1]; }
+    mx /= n; my /= n;
+    let Sxx = 0, Syy = 0, Sxy = 0;
+    for (const p of pts) { const dx = p[0] - mx, dy = p[1] - my; Sxx += dx * dx; Syy += dy * dy; Sxy += dx * dy; }
+    const a = Sxx ? Sxy / Sxx : NaN;
+    const b = my - a * mx;
+    const r = (Sxx && Syy) ? Sxy / Math.sqrt(Sxx * Syy) : NaN;
+    const sdY = Math.sqrt(Syy / n);
+    return { n, mx, my, a, b, r, r2: r * r, sdY, uY: sdY / Math.sqrt(n) };
+}
+
+function niceStep(span) {
+    const p = Math.pow(10, Math.floor(Math.log10(span)));
+    const f = span / p;
+    return f >= 5 ? 5 * p : f >= 2 ? 2 * p : f >= 1 ? p : 0.5 * p;
+}
+
+function dessinerGraph(pts, a, b, labelX, labelY) {
+    const c = document.getElementById('graph-analyse');
+    const g = c.getContext('2d');
+    const cw = c.width, ch = c.height;
+    g.clearRect(0, 0, cw, ch);
+    const padL = 58, padR = 20, padT = 16, padB = 44;
+    const gw = cw - padL - padR, gh = ch - padT - padB;
+    let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+    for (const p of pts) {
+        xmin = Math.min(xmin, p[0]); xmax = Math.max(xmax, p[0]);
+        ymin = Math.min(ymin, p[1]); ymax = Math.max(ymax, p[1]);
+    }
+    if (isFinite(a) && isFinite(b)) {
+        for (const x of [xmin, xmax]) {
+            ymin = Math.min(ymin, a * x + b); ymax = Math.max(ymax, a * x + b);
+        }
+    }
+    const padx = (xmax - xmin) * 0.06 || 1, pady = (ymax - ymin) * 0.1 || 1;
+    xmin -= padx; xmax += padx; ymin -= pady; ymax += pady;
+    const sx = (v) => padL + ((v - xmin) / (xmax - xmin)) * gw;
+    const sy = (v) => padT + gh - ((v - ymin) / (ymax - ymin)) * gh;
+    // grille + graduations
+    g.font = '11px Consolas, monospace'; g.fillStyle = '#64748b'; g.strokeStyle = '#e2e8f0'; g.lineWidth = 1;
+    const sxStep = niceStep(xmax - xmin), syStep = niceStep(ymax - ymin);
+    for (let v = Math.ceil(xmin / sxStep) * sxStep; v <= xmax; v += sxStep) {
+        g.beginPath(); g.moveTo(sx(v), padT); g.lineTo(sx(v), padT + gh); g.stroke();
+        g.textAlign = 'center'; g.fillText(trim(v), sx(v), padT + gh + 14);
+    }
+    for (let v = Math.ceil(ymin / syStep) * syStep; v <= ymax; v += syStep) {
+        g.beginPath(); g.moveTo(padL, sy(v)); g.lineTo(padL + gw, sy(v)); g.stroke();
+        g.textAlign = 'right'; g.fillText(trim(v), padL - 6, sy(v) + 4);
+    }
+    // axes
+    g.strokeStyle = '#94a3b8'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(padL, padT); g.lineTo(padL, padT + gh); g.lineTo(padL + gw, padT + gh); g.stroke();
+    // libellés
+    g.fillStyle = '#0f172a'; g.font = 'bold 13px Consolas, monospace';
+    g.textAlign = 'center'; g.fillText(labelY, padL - 42, padT + 8);
+    g.textAlign = 'center'; g.fillText(labelX, padL + gw / 2, ch - 8);
+    // droite de régression
+    if (isFinite(a) && isFinite(b)) {
+        g.strokeStyle = '#0d6efd'; g.lineWidth = 2.5;
+        g.beginPath(); g.moveTo(sx(xmin), sy(a * xmin + b)); g.lineTo(sx(xmax), sy(a * xmax + b)); g.stroke();
+    }
+    // points
+    for (const p of pts) {
+        g.beginPath(); g.arc(sx(p[0]), sy(p[1]), 4.5, 0, Math.PI * 2);
+        g.fillStyle = '#dc2626'; g.fill(); g.strokeStyle = '#7f1d1d'; g.lineWidth = 1; g.stroke();
+    }
+}
+
+function trim(v) { return (+v.toPrecision(4)).toString(); }
+
+// ------------------------------------------------------------- export CSV
+function csvDonnees() {
+    if (!donnees.colonnes.length) return '';
+    let csv = donnees.colonnes.map(c => c.nom + (c.unite ? ' (' + c.unite + ')' : '')).join(';') + '\n';
+    for (const l of donnees.lignes) csv += l.map(v => isFinite(v) ? v.toPrecision(6) : '').join(';') + '\n';
+    return csv;
+}
+
+function exporterCSV() {
+    if (!donnees.colonnes.length) { notif('Aucune donnée à exporter.'); return; }
+    let txt = '# Expérience : {{ experience.titre }}\n';
+    if (sim && sim.parametresTexte) txt += '# Paramètres : ' + (sim.parametresTexte() || '').replace(/\n/g, ' | ') + '\n';
+    if (texteAnalyse) txt += '# Analyse : ' + texteAnalyse.replace(/\n/g, ' | ') + '\n\n';
+    txt += csvDonnees();
+    const blob = new Blob([txt], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'donnees_' + SLUG + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    notif('Export CSV téléchargé.', true);
+}
+
+// ------------------------------------------------------------- rapport
+function synchroniserRapport() {
+    const p = document.getElementById('id-parametres');
+    const r = document.getElementById('id-resultats');
+    const d = document.getElementById('id-donnees');
+    const an = document.getElementById('id-analyse');
+    if (p && sim && sim.parametresTexte) p.value = sim.parametresTexte();
+    if (r && sim && sim.resultatsTexte) r.value = sim.resultatsTexte();
+    if (d) d.value = csvDonnees();
+    if (an) an.value = texteAnalyse;
+}
+
+// ------------------------------------------------------------------ contrôle global
+function reinitialiser() {
+    temps = 0;
+    if (sim && sim.init) sim.init();
+    setInfo('Prêt');
+}
+
+function basculerPause() {
+    enCourse = !enCourse;
+    const b = document.getElementById('btn-pause');
+    b.innerHTML = enCourse ? '<i class="bi bi-pause-fill me-1"></i>Pause' : '<i class="bi bi-play-fill me-1"></i>Lecture';
+    b.classList.toggle('btn-outline-dark', enCourse);
+    b.classList.toggle('btn-outline-success', !enCourse);
+}
+
+// ================================================================ MOTEURS DE SIMULATION
+const Couleur = {
+    encadre: '#0f172a', doux: '#94a3b8', bleu: '#2563eb', rouge: '#dc2626',
+    vert: '#16a34a', violet: '#7c3aed', orange: '#ea580c', fond: '#f8fafc',
+};
+
+// ---------------------------------------------------------------- PENDULE
+const Pendule = {
+    mesurable: true,
+    theta: 0, omega: 0, pivot: { x: W / 2, y: 80 }, signeAvant: 1, dernierZero: 0, periode: 0,
+    init() {
+        this.theta = lire('ctl-angle') * Math.PI / 180;
+        this.omega = 0; this.signeAvant = Math.sign(Math.sin(this.theta)) || 1;
+        this.dernierZero = 0; this.periode = 0;
+    },
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-longueur', label: 'Longueur du fil', min: 0.3, max: 2, step: 0.05, valeur: 1, unite: 'm', format: v => v.toFixed(2), reinit: true },
+            { type: 'range', id: 'ctl-angle', label: 'Angle initial', min: 5, max: 80, step: 1, valeur: 30, unite: '°', reinit: true },
+            { type: 'range', id: 'ctl-masse', label: 'Masse suspendue', min: 0.1, max: 5, step: 0.1, valeur: 1, unite: 'kg', format: v => v.toFixed(1) },
+            { type: 'checkbox', id: 'ctl-frottements', label: 'Amortissement (frottements)', valeur: true },
+        ];
+    },
+    update(dt) {
+        const L = lire('ctl-longueur'), g = 9.81;
+        const amort = lireBool('ctl-frottements') ? 0.25 : 0;
+        const alpha = -(g / L) * Math.sin(this.theta) - amort * this.omega;
+        this.omega += alpha * dt; this.theta += this.omega * dt;
+        const s = Math.sin(this.theta);
+        if (this.signeAvant <= 0 && s > 0) {
+            if (this.dernierZero) this.periode = temps - this.dernierZero;
+            this.dernierZero = temps;
+        }
+        this.signeAvant = s >= 0 ? 1 : -1;
+        const echelle = 88;
+        const x = this.pivot.x + L * echelle * Math.sin(this.theta);
+        const y = this.pivot.y + L * echelle * Math.cos(this.theta);
+        ctx.clearRect(0, 0, W, H);
+        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.arc(this.pivot.x, this.pivot.y, L * echelle, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(this.pivot.x, this.pivot.y); ctx.lineTo(x, y); ctx.stroke();
+        ctx.beginPath(); ctx.arc(this.pivot.x, this.pivot.y, 6, 0, Math.PI * 2); ctx.fillStyle = Couleur.bleu; ctx.fill();
+        const r = 9 + lire('ctl-masse') * 2.6;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = Couleur.rouge; ctx.fill();
+        ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('L = ' + L.toFixed(2) + ' m   θ = ' + (this.theta * 180 / Math.PI).toFixed(1) + '°', 14, 28);
+        const T = 2 * Math.PI * Math.sqrt(L / g);
+        ctx.fillText('T théorique = ' + T.toFixed(2) + ' s' + (this.periode ? '   |   T mesurée = ' + this.periode.toFixed(2) + ' s' : ''), 14, H - 16);
+        setInfo('<i class="bi bi-magic"></i> Période théorique <strong>' + T.toFixed(2) + ' s</strong> — laissez osciller puis capturez (L, T)');
+    },
+    lectures() {
+        const L = lire('ctl-longueur'), g = 9.81;
+        const T = 2 * Math.PI * Math.sqrt(L / g);
+        const vmax = Math.sqrt(2 * g * L * (1 - Math.cos(lire('ctl-angle') * Math.PI / 180)));
+        return [
+            { nom: 'Période théorique T', valeur: T.toFixed(2), unite: 's' },
+            { nom: 'Période mesurée', valeur: this.periode ? this.periode.toFixed(2) : '—', unite: 's' },
+            { nom: 'Fréquence', valeur: (1 / T).toFixed(2), unite: 'Hz' },
+            { nom: 'Vitesse maximale', valeur: vmax.toFixed(2), unite: 'm/s' },
+            { nom: 'Angle actuel', valeur: (this.theta * 180 / Math.PI).toFixed(1), unite: '°' },
+        ];
+    },
+    mesures() {
+        const L = lire('ctl-longueur'), g = 9.81;
+        const T = this.periode || 2 * Math.PI * Math.sqrt(L / g);
+        return [
+            { nom: 'Longueur L', valeur: L, unite: 'm' },
+            { nom: 'Période T', valeur: T, unite: 's' },
+        ];
+    },
+    transformes: { 'Période T': { 'T² (linéarisation)': e(v => v * v) } },
+    parametresTexte() {
+        return 'L = ' + lire('ctl-longueur').toFixed(2) + ' m ; θ₀ = ' + lire('ctl-angle') + '° ; m = ' + lire('ctl-masse').toFixed(1) + ' kg ; ' + (lireBool('ctl-frottements') ? 'avec amortissement' : 'sans frottement');
+    },
+    resultatsTexte() {
+        const L = lire('ctl-longueur'), g = 9.81;
+        const T = 2 * Math.PI * Math.sqrt(L / g);
+        return 'T théorique = ' + T.toFixed(3) + ' s ; T mesurée = ' + (this.periode ? this.periode.toFixed(3) : '—') + ' s ; f = ' + (1 / T).toFixed(3) + ' Hz';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const g = (4 * Math.PI * Math.PI) / reg.a;
+        return 'Interprétation : T² = (4π²/g).L ⟹ pente a = 4π²/g ⟹ g = ' + g.toFixed(2) + ' m/s² (valeur attendue 9,81).';
+    },
+};
+
+// ---------------------------------------------------------------- PROJECTILE
+const Projectile = {
+    mesurable: true,
+    t: 0, particules: [], fini: false,
+    init() { this.t = 0; this.fini = false; this.particules = []; },
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-vitesse', label: 'Vitesse initiale', min: 5, max: 60, step: 0.5, valeur: 30, unite: 'm/s', reinit: true },
+            { type: 'range', id: 'ctl-angle', label: 'Angle de tir', min: 0, max: 90, step: 1, valeur: 45, unite: '°', reinit: true },
+            { type: 'range', id: 'ctl-hauteur', label: 'Hauteur initiale', min: 0, max: 20, step: 0.5, valeur: 0, unite: 'm', reinit: true },
+        ];
+    },
+    donneesTir() {
+        const g = 9.81, v0 = lire('ctl-vitesse'), ang = lire('ctl-angle') * Math.PI / 180, h0 = lire('ctl-hauteur');
+        const tVol = (v0 * Math.sin(ang) + Math.sqrt(Math.pow(v0 * Math.sin(ang), 2) + 2 * g * h0)) / g;
+        const portee = v0 * Math.cos(ang) * tVol;
+        const hmax = h0 + Math.pow(v0 * Math.sin(ang), 2) / (2 * g);
+        return { v0, ang, h0, tVol, portee, hmax };
+    },
+    update(dt) {
+        const d = this.donneesTir();
+        ctx.clearRect(0, 0, W, H);
+        const solY = H - 40, echelle = 7.5;
+        ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, solY, W, H - solY);
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, solY); ctx.lineTo(W, solY); ctx.stroke();
+        if (d.tVol > 0 && !this.fini) this.t += dt;
+        if (this.t >= d.tVol) { this.fini = true; this.t = d.tVol; }
+        const x = d.v0 * Math.cos(d.ang) * this.t * echelle;
+        const y = d.h0 * echelle - (d.v0 * Math.sin(d.ang) * this.t - 0.5 * 9.81 * this.t * this.t) * echelle;
+        const px = Math.min(x, W - 20), py = solY - Math.max(y, -200);
+        this.particules.push({ x: px, y: py });
+        if (this.particules.length > 300) this.particules.shift();
+        ctx.strokeStyle = Couleur.bleu; ctx.lineWidth = 2.5; ctx.beginPath();
+        this.particules.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+        ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fillStyle = Couleur.rouge; ctx.fill();
+        ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('Portée = ' + d.portee.toFixed(1) + ' m   |   Flèche = ' + d.hmax.toFixed(1) + ' m', 14, 28);
+        ctx.fillText('t = ' + this.t.toFixed(1) + ' s / ' + d.tVol.toFixed(1) + ' s', 14, 46);
+        setInfo('Angle <strong>' + lire('ctl-angle') + '°</strong> — portée <strong>' + d.portee.toFixed(1) + ' m</strong> (théorique)');
+    },
+    lectures() {
+        const d = this.donneesTir();
+        return [
+            { nom: 'Portée R', valeur: d.portee.toFixed(1), unite: 'm' },
+            { nom: 'Hauteur max', valeur: d.hmax.toFixed(1), unite: 'm' },
+            { nom: 'Temps de vol', valeur: d.tVol.toFixed(2), unite: 's' },
+            { nom: 'Vitesse initiale', valeur: d.v0.toFixed(1), unite: 'm/s' },
+            { nom: 'Angle', valeur: lire('ctl-angle'), unite: '°' },
+        ];
+    },
+    mesures() {
+        const d = this.donneesTir();
+        return [
+            { nom: 'Angle', valeur: lire('ctl-angle'), unite: '°' },
+            { nom: 'Portée R', valeur: d.portee, unite: 'm' },
+        ];
+    },
+    transformes: { 'Angle': { 'sin(2θ) — linéarisation': e(v => Math.sin(2 * v * Math.PI / 180)) } },
+    parametresTexte() {
+        return 'v₀ = ' + lire('ctl-vitesse').toFixed(1) + ' m/s ; θ = ' + lire('ctl-angle') + '° ; h₀ = ' + lire('ctl-hauteur').toFixed(1) + ' m';
+    },
+    resultatsTexte() {
+        const d = this.donneesTir();
+        return 'R = ' + d.portee.toFixed(1) + ' m ; Hmax = ' + d.hmax.toFixed(1) + ' m ; t_vol = ' + d.tVol.toFixed(2) + ' s';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const v0 = lire('ctl-vitesse');
+        const g = (v0 * v0) / reg.a;
+        return 'Interprétation : R = (v₀²/g).sin(2θ) ⟹ pente a = v₀²/g ⟹ g = ' + g.toFixed(2) + ' m/s² avec v₀ = ' + v0.toFixed(1) + ' m/s.';
+    },
+};
+
+// ---------------------------------------------------------------- CHUTE LIBRE
+const ChuteLibre = {
+    mesurable: true,
+    y: 0, v: 0, fini: false, tDeb: 0, tChute: 0, hist: [],
+    init() {
+        this.y = lire('ctl-hauteur'); this.v = 0; this.fini = false;
+        this.tDeb = temps; this.tChute = 0; this.hist = [];
+    },
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-hauteur', label: 'Hauteur de chute', min: 5, max: 100, step: 1, valeur: 50, unite: 'm', reinit: true },
+            { type: 'range', id: 'ctl-masse', label: 'Masse', min: 0.1, max: 10, step: 0.1, valeur: 2, unite: 'kg', format: v => v.toFixed(1), reinit: true },
+            { type: 'checkbox', id: 'ctl-air', label: 'Résistance de l\'air (Cx = 0,47)', valeur: false },
+        ];
+    },
+    update(dt) {
+        if (!this.fini) {
+            const air = lireBool('ctl-air'), m = lire('ctl-masse');
+            const rho = 1.225, A = 0.007, Cx = 0.47;
+            const k = 0.5 * rho * Cx * A / m;
+            const a = air ? 9.81 - k * this.v * this.v : 9.81;
+            this.v += a * dt;
+            this.y -= this.v * dt;
+            this.hist.push({ t: temps - this.tDeb, v: this.v });
+            if (this.hist.length > 300) this.hist.shift();
+            if (this.y <= 0) { this.y = 0; this.fini = true; this.tChute = temps - this.tDeb; }
+        }
+        const h0 = lire('ctl-hauteur');
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, H - 50, W, 50);
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, H - 50); ctx.lineTo(W, H - 50); ctx.stroke();
+        const echelle = (H - 90) / h0;
+        const px = W / 3, py = H - 50 - this.y * echelle;
+        ctx.beginPath(); ctx.arc(px, py, 14, 0, Math.PI * 2); ctx.fillStyle = Couleur.bleu; ctx.fill();
+        ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('h = ' + Math.max(this.y, 0).toFixed(1) + ' m    v = ' + this.v.toFixed(1) + ' m/s', 14, 28);
+        if (this.fini) ctx.fillText('⏹ Au sol — temps de chute = ' + this.tChute.toFixed(2) + ' s', 14, 46);
+        // graphe v(t)
+        const gx = W / 2 + 40, gy = 34, gw = W / 2 - 60, gh = H - 90;
+        ctx.strokeStyle = '#e2e8f0'; ctx.fillStyle = Couleur.encadre; ctx.lineWidth = 1;
+        ctx.strokeRect(gx, gy, gw, gh);
+        ctx.fillText('v (m/s) — t (s)', gx + 8, gy - 6);
+        const vmax = Math.max.apply(null, this.hist.map(p => p.v).concat([1]));
+        ctx.strokeStyle = Couleur.vert; ctx.lineWidth = 2; ctx.beginPath();
+        this.hist.forEach((p, i) => {
+            const xx = gx + (i / 300) * gw, yy = gy + gh - (p.v / vmax) * gh;
+            i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+        });
+        ctx.stroke();
+        setInfo('v = <strong>' + this.v.toFixed(1) + ' m/s</strong>' + (this.fini ? ' — au sol après <strong>' + this.tChute.toFixed(2) + ' s</strong>' : ''));
+    },
+    lectures() {
+        const h0 = lire('ctl-hauteur'), g = 9.81;
+        const tTheo = Math.sqrt(2 * h0 / g), vTheo = Math.sqrt(2 * g * h0);
+        return [
+            { nom: 'Temps de chute (vidé)', valeur: tTheo.toFixed(2), unite: 's' },
+            { nom: 'Temps de chute (simulé)', valeur: this.fini ? this.tChute.toFixed(2) : '…', unite: 's' },
+            { nom: 'Vitesse finale (vidé)', valeur: vTheo.toFixed(1), unite: 'm/s' },
+            { nom: 'Énergie cinétique', valeur: (0.5 * lire('ctl-masse') * vTheo * vTheo / 1000).toFixed(2), unite: 'kJ' },
+        ];
+    },
+    mesures() {
+        const h0 = lire('ctl-hauteur'), g = 9.81;
+        const t = this.fini ? this.tChute : Math.sqrt(2 * h0 / g);
+        const vFin = this.fini ? this.v : Math.sqrt(2 * g * h0);
+        return [
+            { nom: 'Hauteur h', valeur: h0, unite: 'm' },
+            { nom: 'Temps de chute', valeur: t, unite: 's' },
+            { nom: 'Vitesse finale', valeur: vFin, unite: 'm/s' },
+        ];
+    },
+    transformes: { 'Temps de chute': { 't² (linéarisation)': e(v => v * v) } },
+    parametresTexte() {
+        return 'h₀ = ' + lire('ctl-hauteur').toFixed(1) + ' m ; m = ' + lire('ctl-masse').toFixed(1) + ' kg ; ' + (lireBool('ctl-air') ? 'avec résistance de l\'air' : 'sans résistance de l\'air');
+    },
+    resultatsTexte() {
+        const h0 = lire('ctl-hauteur'), g = 9.81;
+        const tTheo = Math.sqrt(2 * h0 / g), vTheo = Math.sqrt(2 * g * h0);
+        return 't_vide = ' + tTheo.toFixed(2) + ' s ; t_simulé = ' + (this.fini ? this.tChute.toFixed(2) : '—') + ' s ; v_finale = ' + vTheo.toFixed(1) + ' m/s ; Ec = ' + (0.5 * lire('ctl-masse') * vTheo * vTheo / 1000).toFixed(2) + ' kJ';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const g = 2 / reg.a;
+        return 'Interprétation : h = (g/2).t² ⟹ pente a = g/2 ⟹ g = ' + g.toFixed(2) + ' m/s².';
+    },
+};
+
+// ---------------------------------------------------------------- RESSORT
+const Ressort = {
+    mesurable: true,
+    t: 0,
+    init() { this.t = 0; },
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-rigidite', label: 'Raideur k', min: 5, max: 200, step: 1, valeur: 50, unite: 'N/m', reinit: true },
+            { type: 'range', id: 'ctl-masse', label: 'Masse', min: 0.1, max: 5, step: 0.1, valeur: 1, unite: 'kg', format: v => v.toFixed(1), reinit: true },
+            { type: 'range', id: 'ctl-amplitude', label: 'Amplitude', min: 2, max: 25, step: 1, valeur: 10, unite: 'cm', reinit: true },
+        ];
+    },
+    update(dt) {
+        this.t += dt;
+        const k = lire('ctl-rigidite'), m = lire('ctl-masse'), A = lire('ctl-amplitude') / 100;
+        const omega = Math.sqrt(k / m), T = 2 * Math.PI / omega;
+        const x = A * Math.cos(omega * this.t);
+        ctx.clearRect(0, 0, W, H);
+        const cx = W / 2, haut = 60, bas = H - 40;
+        ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0, bas, W, 40);
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, bas); ctx.lineTo(W, bas); ctx.stroke();
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(cx - 34, haut); ctx.lineTo(cx + 34, haut); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, haut, 6, 0, Math.PI * 2); ctx.fillStyle = Couleur.bleu; ctx.fill();
+        const yBas = haut + 110 + x * 230;
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3; ctx.beginPath();
+        const nz = 12;
+        for (let i = 0; i <= nz; i++) {
+            const yy = haut + 18 + ((yBas - haut - 18) / nz) * i;
+            const xx = i % 2 === 0 ? cx : cx + 18;
+            i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+        }
+        ctx.stroke();
+        const r = 15 + m * 2.2;
+        ctx.beginPath(); ctx.arc(cx, yBas, r, 0, Math.PI * 2); ctx.fillStyle = Couleur.rouge; ctx.fill();
+        ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('ω = √(k/m) = ' + omega.toFixed(1) + ' rad/s   T = ' + T.toFixed(2) + ' s', 14, 28);
+        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx + 80, yBas); ctx.lineTo(cx + 240, yBas); ctx.stroke();
+        setInfo('Période <strong>' + T.toFixed(2) + ' s</strong> — capturez (m, T) pour vérifier T = 2π√(m/k)');
+    },
+    lectures() {
+        const k = lire('ctl-rigidite'), m = lire('ctl-masse');
+        const omega = Math.sqrt(k / m), T = 2 * Math.PI / omega, A = lire('ctl-amplitude') / 100;
+        return [
+            { nom: 'Pulsation ω', valeur: omega.toFixed(2), unite: 'rad/s' },
+            { nom: 'Période T', valeur: T.toFixed(2), unite: 's' },
+            { nom: 'Vitesse max', valeur: (omega * A).toFixed(2), unite: 'm/s' },
+            { nom: 'Énergie mécanique', valeur: (0.5 * k * A * A).toFixed(3), unite: 'J' },
+        ];
+    },
+    mesures() {
+        const k = lire('ctl-rigidite'), m = lire('ctl-masse');
+        const T = 2 * Math.PI / Math.sqrt(k / m);
+        return [
+            { nom: 'Masse m', valeur: m, unite: 'kg' },
+            { nom: 'Période T', valeur: T, unite: 's' },
+        ];
+    },
+    transformes: { 'Période T': { 'T² (linéarisation)': e(v => v * v) } },
+    parametresTexte() {
+        return 'k = ' + lire('ctl-rigidite') + ' N/m ; m = ' + lire('ctl-masse').toFixed(1) + ' kg ; A = ' + lire('ctl-amplitude') + ' cm';
+    },
+    resultatsTexte() {
+        const k = lire('ctl-rigidite'), m = lire('ctl-masse'), A = lire('ctl-amplitude') / 100;
+        const omega = Math.sqrt(k / m), T = 2 * Math.PI / omega;
+        return 'T = ' + T.toFixed(3) + ' s ; ω = ' + omega.toFixed(2) + ' rad/s ; E = ' + (0.5 * k * A * A).toFixed(3) + ' J';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const k = (4 * Math.PI * Math.PI) / reg.a;
+        return 'Interprétation : T² = (4π²/k).m ⟹ pente a = 4π²/k ⟹ k = ' + k.toFixed(1) + ' N/m (valeur réglée : ' + lire('ctl-rigidite') + ' N/m).';
+    },
+};
+
+// ---------------------------------------------------------------- LOI D'OHM
+const LoiOhm = {
+    mesurable: true,
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-tension', label: 'Tension du générateur', min: 0, max: 20, step: 0.1, valeur: 10, unite: 'V', format: v => v.toFixed(1) },
+            { type: 'range', id: 'ctl-resistance', label: 'Résistance R', min: 1, max: 100, step: 1, valeur: 20, unite: 'Ω' },
+        ];
+    },
+    update() {
+        const U = lire('ctl-tension'), R = lire('ctl-resistance');
+        const I = U / R, P = U * I;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, W, H);
+        const x0 = 60, y0 = 70, x1 = W - 60, y1 = H - 60;
+        // fils
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0, y0); ctx.stroke();
+        // ampèremètre (haut)
+        const am = { x: (x0 + x1) / 2, y: y0 };
+        ctx.beginPath(); ctx.arc(am.x, am.y, 22, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = 'bold 13px Consolas, monospace'; ctx.textAlign = 'center';
+        ctx.fillText('A', am.x, am.y + 5);
+        ctx.fillText((I * 1000).toFixed(1) + ' mA', am.x, am.y + 40);
+        // résistance (bas)
+        const rz = { x: (x0 + x1) / 2, y: y1 };
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3; ctx.beginPath();
+        const nz = 8;
+        for (let i = 0; i <= nz; i++) {
+            const yy = rz.y - 22 + (44 / nz) * i;
+            const xx = i % 2 === 0 ? rz.x - 22 : rz.x + 22;
+            i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+        }
+        ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = 'bold 13px Consolas, monospace';
+        ctx.fillText('R = ' + R + ' Ω', rz.x, rz.y + 36);
+        // voltmètre (dérivation verticale)
+        const vo = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+        ctx.setLineDash([6, 4]); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(vo.x, y0); ctx.lineTo(vo.x, y1); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.arc(vo.x, vo.y, 22, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = Couleur.encadre; ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = 'bold 13px Consolas, monospace'; ctx.fillText('V', vo.x, vo.y + 5);
+        ctx.fillText(U.toFixed(1) + ' V', vo.x, vo.y - 32);
+        // pile
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(x0 + 14, (y0 + y1) / 2 - 16); ctx.lineTo(x0 + 44, (y0 + y1) / 2 - 16); ctx.stroke();
+        ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(x0 + 14, (y0 + y1) / 2 + 16); ctx.lineTo(x0 + 44, (y0 + y1) / 2 + 16); ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = 'bold 13px Consolas, monospace'; ctx.fillText('U', x0 + 20, (y0 + y1) / 2 - 26);
+        // lecture bas
+        ctx.textAlign = 'left';
+        ctx.fillStyle = Couleur.encadre; ctx.font = '15px Consolas, monospace';
+        ctx.fillText('I = U / R = ' + (U / R).toFixed(3) + ' A   |   P = ' + P.toFixed(2) + ' W', 14, 28);
+        setInfo('U = <strong>' + U.toFixed(1) + ' V</strong> — I = <strong>' + (I * 1000).toFixed(1) + ' mA</strong>');
+        ctx.textAlign = 'left';
+    },
+    lectures() {
+        const U = lire('ctl-tension'), R = lire('ctl-resistance'), I = U / R;
+        return [
+            { nom: 'Tension U', valeur: U.toFixed(1), unite: 'V' },
+            { nom: 'Courant I', valeur: (I * 1000).toFixed(1), unite: 'mA' },
+            { nom: 'Résistance', valeur: R, unite: 'Ω' },
+            { nom: 'Puissance dissipée', valeur: (U * I).toFixed(2), unite: 'W' },
+        ];
+    },
+    mesures() {
+        const U = lire('ctl-tension'), R = lire('ctl-resistance');
+        return [
+            { nom: 'Tension U', valeur: U, unite: 'V' },
+            { nom: 'Courant I', valeur: (U / R) * 1000, unite: 'mA' },
+        ];
+    },
+    parametresTexte() { return 'R = ' + lire('ctl-resistance') + ' Ω ; générateur réglable U ∈ [0 ; 20] V'; },
+    resultatsTexte() {
+        const U = lire('ctl-tension'), R = lire('ctl-resistance');
+        return 'U = ' + U.toFixed(1) + ' V ; I = ' + (U / R * 1000).toFixed(1) + ' mA ; U/I = ' + R + ' Ω';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const R = 1 / (reg.a * 1000) * 1000;
+        return 'Interprétation : I = (1/R).U ⟹ pente a = 1/R ⟹ R = ' + (1000 / reg.a).toFixed(1) + ' Ω (valeur réglée : ' + lire('ctl-resistance') + ' Ω).';
+    },
+};
+
+// ---------------------------------------------------------------- RÉFRACTION
+const Refraction = {
+    mesurable: true,
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-incidence', label: 'Angle d\'incidence i', min: 0, max: 85, step: 1, valeur: 45, unite: '°' },
+            { type: 'range', id: 'ctl-indice', label: 'Indice du milieu n₂', min: 1.1, max: 2.4, step: 0.01, valeur: 1.5, unite: '', format: v => v.toFixed(2) },
+        ];
+    },
+    calcule() {
+        const n1 = 1.0, n2 = lire('ctl-indice'), i = lire('ctl-incidence') * Math.PI / 180;
+        const sinr = Math.min(1, (n1 / n2) * Math.sin(i));
+        const r = Math.asin(sinr) * 180 / Math.PI;
+        return { n1, n2, iDeg: lire('ctl-incidence'), rDeg: r };
+    },
+    update() {
+        const d = this.calcule();
+        ctx.clearRect(0, 0, W, H);
+        const yi = 210;
+        // milieu 2
+        ctx.fillStyle = '#dbeafe'; ctx.fillRect(0, yi, W, H - yi);
+        ctx.fillStyle = '#bfdbfe'; ctx.fillRect(0, yi, W, 4);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0, yi); ctx.lineTo(W, yi); ctx.stroke();
+        ctx.fillStyle = '#1e40af'; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('milieu 2 — n₂ = ' + d.n2.toFixed(2), 14, yi + 22);
+        // normale
+        ctx.setLineDash([8, 5]); ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(W / 2, yi - 170); ctx.lineTo(W / 2, yi + 170); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillText('normale', W / 2 + 8, yi - 150);
+        // rayon incident
+        const cx = W / 2, cy = yi;
+        const li = 150;
+        const ex = cx - li * Math.sin(d.iDeg * Math.PI / 180);
+        const ey = cy - li * Math.cos(d.iDeg * Math.PI / 180);
+        ctx.strokeStyle = '#eab308'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(cx, cy); ctx.stroke();
+        // rayon réfracté
+        const lr = 150;
+        const rx = cx + lr * Math.sin(d.rDeg * Math.PI / 180);
+        const ry = cy + lr * Math.cos(d.rDeg * Math.PI / 180);
+        ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(rx, ry); ctx.stroke();
+        // arcs d'angles
+        ctx.strokeStyle = '#a16207'; ctx.beginPath(); ctx.arc(cx, cy, 38, Math.PI, Math.PI + d.iDeg * Math.PI / 180); ctx.stroke();
+        ctx.strokeStyle = '#6d28d9'; ctx.beginPath(); ctx.arc(cx, cy, 52, Math.PI + Math.PI, Math.PI + Math.PI + d.rDeg * Math.PI / 180); ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('i = ' + d.iDeg + '°', cx - 90, cy - 60);
+        ctx.fillText('r = ' + d.rDeg.toFixed(1) + '°', cx + 30, cy + 70);
+        const verif = (d.n1 * Math.sin(d.iDeg * Math.PI / 180)).toFixed(4) + ' = ' + (d.n2 * Math.sin(d.rDeg * Math.PI / 180)).toFixed(4);
+        ctx.fillText('n₁.sin i = ' + verif, 14, 26);
+        setInfo('n₁ = <strong>1,00</strong> — n₂ = <strong>' + d.n2.toFixed(2) + '</strong> — vérifiez n₁.sin(i) = n₂.sin(r)');
+    },
+    lectures() {
+        const d = this.calcule();
+        return [
+            { nom: 'Angle incident i', valeur: d.iDeg, unite: '°' },
+            { nom: 'Angle réfracté r', valeur: d.rDeg.toFixed(1), unite: '°' },
+            { nom: 'n₁ sin i', valeur: (d.n1 * Math.sin(d.iDeg * Math.PI / 180)).toFixed(4), unite: '' },
+            { nom: 'n₂ sin r', valeur: (d.n2 * Math.sin(d.rDeg * Math.PI / 180)).toFixed(4), unite: '' },
+        ];
+    },
+    mesures() {
+        const d = this.calcule();
+        return [
+            { nom: 'Angle incident i', valeur: d.iDeg, unite: '°' },
+            { nom: 'Angle réfracté r', valeur: d.rDeg, unite: '°' },
+        ];
+    },
+    transformes: {
+        'Angle incident i': { 'sin(i) — linéarisation': e(v => Math.sin(v * Math.PI / 180)) },
+        'Angle réfracté r': { 'sin(r) — linéarisation': e(v => Math.sin(v * Math.PI / 180)) },
+    },
+    parametresTexte() { return 'n₁ = 1,00 (air) ; n₂ = ' + lire('ctl-indice').toFixed(2) + ' ; i variable'; },
+    resultatsTexte() {
+        const d = this.calcule();
+        return 'i = ' + d.iDeg + '° ; r = ' + d.rDeg.toFixed(1) + '° ; n₁.sin(i) = ' + (d.n1 * Math.sin(d.iDeg * Math.PI / 180)).toFixed(4) + ' ; n₂.sin(r) = ' + (d.n2 * Math.sin(d.rDeg * Math.PI / 180)).toFixed(4);
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const n2 = 1 / reg.a;
+        return 'Interprétation : sin(r) = (n₁/n₂).sin(i) ⟹ pente a = n₁/n₂ ⟹ n₂ = ' + n2.toFixed(2) + ' (valeur réglée : ' + lire('ctl-indice').toFixed(2) + ').';
+    },
+};
+
+// ---------------------------------------------------------------- TITRATION
+const Titration = {
+    mesurable: true,
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-volume', label: 'Volume NaOH versé', min: 0, max: 50, step: 0.1, valeur: 0, unite: 'mL', format: v => v.toFixed(1) },
+            { type: 'range', id: 'ctl-concentration', label: 'Concentration NaOH', min: 0.05, max: 1, step: 0.01, valeur: 0.1, unite: 'mol/L', format: v => v.toFixed(2) },
+            { type: 'checkbox', id: 'ctl-indicateur', label: 'Indicateur coloré (phénolphtaléine)', valeur: true },
+        ];
+    },
+    calculePh(v, Cb) {
+        const Va = 0.050, Ca = 0.1, Vb = v / 1000;
+        const nAcide = Ca * Va, nBase = Cb * Vb;
+        let pH;
+        if (Vb === 0) pH = -Math.log10(Ca);
+        else if (nBase < nAcide) { pH = -Math.log10((nAcide - nBase) / (Va + Vb)); }
+        else if (nBase === nAcide) pH = 7;
+        else { pH = 14 + Math.log10((nBase - nAcide) / (Va + Vb)); }
+        if (pH < 0) pH = 0; if (pH > 14) pH = 14;
+        return pH;
+    },
+    update() {
+        const v = lire('ctl-volume'), Cb = lire('ctl-concentration');
+        const Va = 0.050, Ca = 0.1;
+        const pH = this.calculePh(v, Cb);
+        const veq = (Ca * Va * 1000) / Cb;
+        const ind = lireBool('ctl-indicateur');
+        ctx.clearRect(0, 0, W, H);
+        // bécher
+        const bx = 90, by = 170, bw = 190, bh = 210;
+        ctx.fillStyle = '#f1f5f9'; ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3; ctx.strokeRect(bx, by, bw, bh);
+        const couleur = pH < 3.2 ? '#ef4444' : pH < 4.4 ? '#f97316' : pH < 8 ? '#eef2ff' : pH < 10 ? '#ec4899' : '#7c3aed';
+        ctx.fillStyle = ind ? couleur : '#93c5fd';
+        ctx.globalAlpha = 0.55; ctx.fillRect(bx + 4, by + 4, bw - 8, bh - 8); ctx.globalAlpha = 1;
+        ctx.fillStyle = Couleur.encadre; ctx.font = '15px Consolas, monospace';
+        ctx.fillText('pH = ' + pH.toFixed(1), bx + 12, by + 26);
+        ctx.fillText(ind ? 'indicateur : ' + (pH < 3.2 ? 'rouge' : pH < 8 ? 'incolore' : 'rose') : 'sans indicateur', bx + 12, by + 46);
+        // burette
+        const txx = W - 220, tw = 44, ty = 36, th = 210;
+        ctx.fillStyle = '#e2e8f0'; ctx.fillRect(txx, ty, tw, th);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 2; ctx.strokeRect(txx, ty, tw, th);
+        ctx.fillStyle = '#3b82f6'; ctx.globalAlpha = 0.75;
+        ctx.fillRect(txx + 3, ty + 3, tw - 6, th - 6); ctx.globalAlpha = 1;
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('NaOH ' + v.toFixed(1) + ' mL', txx - 20, ty + th + 26);
+        ctx.fillText('Véq = ' + veq.toFixed(1) + ' mL', 14, H - 16);
+        // courbe pH(V)
+        const gx = W - 560, gy = 30, gw = 270, gh = 150;
+        ctx.strokeStyle = '#e2e8f0'; ctx.fillStyle = Couleur.encadre; ctx.lineWidth = 1;
+        ctx.strokeRect(gx, gy, gw, gh);
+        ctx.fillText('pH — V(NaOH)', gx + 8, gy - 6);
+        ctx.strokeStyle = Couleur.violet; ctx.lineWidth = 2; ctx.beginPath();
+        for (let i = 0; i <= 100; i++) {
+            const vv = (i / 100) * 50;
+            const ph = this.calculePh(vv, Cb);
+            const xx = gx + (vv / 50) * gw, yy = gy + gh - (ph / 14) * gh;
+            i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+        }
+        ctx.stroke();
+        // position actuelle
+        const xxv = gx + (v / 50) * gw, yyv = gy + gh - (pH / 14) * gh;
+        ctx.beginPath(); ctx.arc(xxv, yyv, 5, 0, Math.PI * 2); ctx.fillStyle = Couleur.rouge; ctx.fill();
+        ctx.strokeStyle = '#7f1d1d'; ctx.stroke();
+        setInfo('V = <strong>' + v.toFixed(1) + ' mL</strong> — pH = <strong>' + pH.toFixed(2) + '</strong> — équivalence à <strong>' + veq.toFixed(1) + ' mL</strong>');
+    },
+    lectures() {
+        const v = lire('ctl-volume'), Cb = lire('ctl-concentration');
+        const Va = 0.050, Ca = 0.1, veq = (Ca * Va * 1000) / Cb;
+        const pH = this.calculePh(v, Cb);
+        return [
+            { nom: 'Volume versé', valeur: v.toFixed(1), unite: 'mL' },
+            { nom: 'pH actuel', valeur: pH.toFixed(2), unite: '' },
+            { nom: 'Point d\'équivalence', valeur: veq.toFixed(1), unite: 'mL' },
+            { nom: 'Solution', valeur: pH < 7 ? 'Acide' : pH > 7 ? 'Basique' : 'Neutre', unite: '' },
+        ];
+    },
+    mesures() {
+        return [
+            { nom: 'Volume versé V', valeur: lire('ctl-volume'), unite: 'mL' },
+            { nom: 'pH', valeur: this.calculePh(lire('ctl-volume'), lire('ctl-concentration')), unite: '' },
+        ];
+    },
+    transformes: { 'pH': { 'dérivée d(pH)/dV': derivee } },
+    parametresTexte() {
+        return 'HCl 0,10 mol/L, 50,0 mL ; C(NaOH) = ' + lire('ctl-concentration').toFixed(2) + ' mol/L ; V(NaOH) = ' + lire('ctl-volume').toFixed(1) + ' mL';
+    },
+    resultatsTexte() {
+        const Va = 0.050, Ca = 0.1, Cb = lire('ctl-concentration');
+        const veq = (Ca * Va * 1000) / Cb;
+        return 'Véq = ' + veq.toFixed(1) + ' mL (pH 7) ; pH final = ' + this.calculePh(lire('ctl-volume'), Cb).toFixed(2);
+    },
+    interpreter(reg) { return null; },
+};
+
+// ---------------------------------------------------------------- pH INDICATEUR
+const PhIndicateur = {
+    mesurable: false,
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-ph', label: 'pH de la solution', min: 0, max: 14, step: 0.1, valeur: 7, unite: '', format: v => v.toFixed(1) },
+        ];
+    },
+    classe(ph) {
+        if (ph < 3) return 'Acide fort';
+        if (ph < 6.5) return 'Acide faible';
+        if (ph <= 7.5) return 'Neutre';
+        if (ph < 11) return 'Base faible';
+        return 'Base forte';
+    },
+    update() {
+        const ph = lire('ctl-ph');
+        ctx.clearRect(0, 0, W, H);
+        const g = ctx.createLinearGradient(0, 0, W, 0);
+        const couleurs = ['#d90429', '#ef233c', '#f94144', '#f3722c', '#f8961e', '#f9c74f', '#b7e4c7', '#74c69d', '#06d6a0', '#2ec4b6', '#118ab2', '#0077b6', '#023e8a', '#10002b', '#3a0ca3'];
+        couleurs.forEach((col, i) => g.addColorStop(i / (couleurs.length - 1), col));
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H - 60);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3;
+        ctx.strokeRect(0, 0, W, H - 60);
+        const x = (ph / 14) * W;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H - 60); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, H - 60, 12, 0, Math.PI * 2); ctx.fillStyle = Couleur.encadre; ctx.fill();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '14px Consolas, monospace';
+        for (let i = 0; i <= 14; i++) ctx.fillText(i, (i / 14) * W - 5, H - 28);
+        setInfo('pH = <strong>' + ph.toFixed(1) + '</strong> — ' + this.classe(ph));
+    },
+    lectures() {
+        const ph = lire('ctl-ph');
+        return [
+            { nom: 'pH', valeur: ph.toFixed(1), unite: '' },
+            { nom: 'Nature de la solution', valeur: this.classe(ph), unite: '' },
+            { nom: '[H₃O⁺]', valeur: Math.pow(10, -ph).toExponential(2), unite: 'mol/L' },
+            { nom: '[OH⁻]', valeur: Math.pow(10, -(14 - ph)).toExponential(2), unite: 'mol/L' },
+        ];
+    },
+    parametresTexte() { return 'pH fixé = ' + lire('ctl-ph').toFixed(1) + ' (indicateur universel)'; },
+    resultatsTexte() {
+        const ph = lire('ctl-ph');
+        return 'Solution ' + this.classe(ph) + ' ; [H₃O⁺] = ' + Math.pow(10, -ph).toExponential(2) + ' mol/L ; [OH⁻] = ' + Math.pow(10, -(14 - ph)).toExponential(2) + ' mol/L';
+    },
+};
+
+// ---------------------------------------------------------------- ÉQUATION BILAN
+const EquationBilan = {
+    mesurable: false,
+    controles() {
+        const mk = (id, label, val) => ({ type: 'number', id, label, valeur: val, unite: '' });
+        return [
+            mk('ctl-c3h8', 'C₃H₈', 1), mk('ctl-o2', 'O₂', 1),
+            mk('ctl-co2', 'CO₂', 1), mk('ctl-h2o', 'H₂O', 1),
+        ];
+    },
+    update() {
+        const c3h8 = Math.round(lire('ctl-c3h8')), o2 = Math.round(lire('ctl-o2'));
+        const co2 = Math.round(lire('ctl-co2')), h2o = Math.round(lire('ctl-h2o'));
+        const aG = { C: c3h8 * 3, H: c3h8 * 8, O: o2 * 2 };
+        const aD = { C: co2, H: h2o * 2, O: co2 * 2 + h2o };
+        const egal = aG.C === aD.C && aG.H === aD.H && aG.O === aD.O;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = Couleur.encadre; ctx.textAlign = 'center';
+        ctx.font = '22px Consolas, monospace';
+        ctx.fillText(c3h8 + ' C₃H₈  +  ' + o2 + ' O₂   →   ' + co2 + ' CO₂  +  ' + h2o + ' H₂O', W / 2, H / 2 - 30);
+        ctx.font = '15px Consolas, monospace';
+        ctx.fillStyle = egal ? '#16a34a' : '#dc2626';
+        ctx.fillText(egal ? 'ÉQUATION ÉQUILIBRÉE ✓  —  loi de Lavoisier respectée' : 'Équation déséquilibrée — ajustez les coefficients', W / 2, H / 2 + 10);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = Couleur.encadre; ctx.font = '14px Consolas, monospace';
+        const bilans = ['C', 'H', 'O'];
+        bilans.forEach((el, i) => {
+            const gauche = aG[el], droite = aD[el];
+            const ok = gauche === droite;
+            ctx.fillStyle = ok ? '#16a34a' : '#dc2626';
+            ctx.fillText('Bilan ' + el + ' : ' + gauche + ' = ' + droite + (ok ? ' ✓' : ' ✗'), 60 + i * 230, H - 40);
+        });
+        setInfo(egal ? '<i class="bi bi-check-circle text-success"></i> Équation équilibrée' : 'Équation à équilibrer — 1 C₃H₈ + 5 O₂ → 3 CO₂ + 4 H₂O');
+    },
+    lectures() {
+        const c3h8 = Math.round(lire('ctl-c3h8')), o2 = Math.round(lire('ctl-o2'));
+        const co2 = Math.round(lire('ctl-co2')), h2o = Math.round(lire('ctl-h2o'));
+        const aG = { C: c3h8 * 3, H: c3h8 * 8, O: o2 * 2 };
+        const aD = { C: co2, H: h2o * 2, O: co2 * 2 + h2o };
+        const egal = aG.C === aD.C && aG.H === aD.H && aG.O === aD.O;
+        return [
+            { nom: 'Bilan carbone C', valeur: aG.C + ' = ' + aD.C + (aG.C === aD.C ? ' ✓' : ' ✗'), unite: '' },
+            { nom: 'Bilan hydrogène H', valeur: aG.H + ' = ' + aD.H + (aG.H === aD.H ? ' ✓' : ' ✗'), unite: '' },
+            { nom: 'Bilan oxygène O', valeur: aG.O + ' = ' + aD.O + (aG.O === aD.O ? ' ✓' : ' ✗'), unite: '' },
+            { nom: 'État', valeur: egal ? 'Équilibrée' : 'À équilibrer', unite: '' },
+        ];
+    },
+    parametresTexte() {
+        return 'C₃H₈=' + Math.round(lire('ctl-c3h8')) + ' ; O₂=' + Math.round(lire('ctl-o2')) + ' ; CO₂=' + Math.round(lire('ctl-co2')) + ' ; H₂O=' + Math.round(lire('ctl-h2o'));
+    },
+    resultatsTexte() {
+        const c3h8 = Math.round(lire('ctl-c3h8')), o2 = Math.round(lire('ctl-o2'));
+        const co2 = Math.round(lire('ctl-co2')), h2o = Math.round(lire('ctl-h2o'));
+        const aG = { C: c3h8 * 3, H: c3h8 * 8, O: o2 * 2 };
+        const aD = { C: co2, H: h2o * 2, O: co2 * 2 + h2o };
+        const egal = aG.C === aD.C && aG.H === aD.H && aG.O === aD.O;
+        return egal ? 'Équation équilibrée : conservation des atomes et de la masse.' : 'Bilan atomique non respecté (C=' + aG.C + '/' + aD.C + ', H=' + aG.H + '/' + aD.H + ', O=' + aG.O + '/' + aD.O + ').';
+    },
+};
+
+// ---------------------------------------------------------------- DILUTION / BEER-LAMBERT
+const Dilution = {
+    mesurable: true,
+    facteurs: [1, 2, 4, 8, 16],
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-c0', label: 'Concentration mère C₀', min: 0.1, max: 2, step: 0.05, valeur: 1, unite: 'mol/L', format: v => v.toFixed(2) },
+            { type: 'range', id: 'ctl-cuve', label: 'Longueur de cuve ℓ', min: 1, max: 5, step: 1, valeur: 1, unite: 'cm' },
+            { type: 'range', id: 'ctl-cuvette', label: 'Cuvette à mesurer', min: 1, max: 5, step: 1, valeur: 1, unite: '/5' },
+        ];
+    },
+    eps() { return 0.4; },
+    cuvette(sel) {
+        const C0 = lire('ctl-c0'), l = lire('ctl-cuve');
+        const f = this.facteurs[sel];
+        const C = C0 / f;
+        const A = this.eps() * l * C;
+        return { C, A, f };
+    },
+    update() {
+        const C0 = lire('ctl-c0'), l = lire('ctl-cuve');
+        const sel = Math.round(lire('ctl-cuvette')) - 1;
+        ctx.clearRect(0, 0, W, H);
+        const n = this.facteurs.length;
+        const bw = 96, gap = 24, x0 = (W - (n * bw + (n - 1) * gap)) / 2, y0 = 120, bh = 210;
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('Gamme de dilution — solution mère C₀ = ' + C0.toFixed(2) + ' mol/L', 14, 26);
+        for (let i = 0; i < n; i++) {
+            const d = this.cuvette(i);
+            const x = x0 + i * (bw + gap);
+            const a = Math.min(1, d.A / 1.6);
+            ctx.fillStyle = '#f1f5f9'; ctx.fillRect(x, y0, bw, bh);
+            ctx.fillStyle = 'rgba(13,110,253,' + (0.15 + 0.8 * a) + ')';
+            ctx.fillRect(x + 3, y0 + 3, bw - 6, bh - 6);
+            ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 2; ctx.strokeRect(x, y0, bw, bh);
+            ctx.fillStyle = Couleur.encadre; ctx.font = '12px Consolas, monospace'; ctx.textAlign = 'center';
+            ctx.fillText('×' + this.facteurs[i], x + bw / 2, y0 - 8);
+            ctx.fillText('C=' + d.C.toFixed(3), x + bw / 2, y0 + 18);
+            ctx.fillText('A=' + d.A.toFixed(3), x + bw / 2, y0 + 36);
+            if (i === sel) {
+                ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 3; ctx.strokeRect(x - 3, y0 - 3, bw + 6, bh + 6);
+            }
+        }
+        ctx.textAlign = 'left';
+        const d = this.cuvette(sel);
+        ctx.fillStyle = Couleur.encadre; ctx.font = '15px Consolas, monospace';
+        ctx.fillText('Cuvette n°' + (sel + 1) + '  →  C = ' + d.C.toFixed(3) + ' mol/L   A = ' + d.A.toFixed(3) + ' u.a.', 14, H - 14);
+        setInfo('A = ε.ℓ.C — cuvette <strong>n°' + (sel + 1) + '</strong> : A = <strong>' + d.A.toFixed(3) + '</strong>');
+    },
+    lectures() {
+        const sel = Math.round(lire('ctl-cuvette')) - 1;
+        const d = this.cuvette(sel);
+        return [
+            { nom: 'Concentration C', valeur: d.C.toFixed(3), unite: 'mol/L' },
+            { nom: 'Absorbance A', valeur: d.A.toFixed(3), unite: 'u.a.' },
+            { nom: 'Facteur de dilution', valeur: '1/' + d.f, unite: '' },
+            { nom: 'Longueur de cuve', valeur: lire('ctl-cuve'), unite: 'cm' },
+        ];
+    },
+    mesures() {
+        const sel = Math.round(lire('ctl-cuvette')) - 1;
+        const d = this.cuvette(sel);
+        return [
+            { nom: 'Concentration C', valeur: d.C, unite: 'mol/L' },
+            { nom: 'Absorbance A', valeur: d.A, unite: 'u.a.' },
+        ];
+    },
+    parametresTexte() {
+        return 'C₀ = ' + lire('ctl-c0').toFixed(2) + ' mol/L ; ℓ = ' + lire('ctl-cuve') + ' cm ; facteurs de dilution 1, 2, 4, 8, 16 ; ε = 0,40 L·mol⁻¹·cm⁻¹';
+    },
+    resultatsTexte() {
+        const lignes = this.facteurs.map((f, i) => {
+            const d = this.cuvette(i);
+            return 'Cuvette ' + (i + 1) + ' : C = ' + d.C.toFixed(3) + ' mol/L, A = ' + d.A.toFixed(3);
+        });
+        return lignes.join(' ; ');
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const eps = reg.a / lire('ctl-cuve');
+        return 'Interprétation : A = (ε.ℓ).C ⟹ pente a = ε.ℓ ⟹ ε = ' + eps.toFixed(2) + ' L·mol⁻¹·cm⁻¹ (valeur théorique 0,40). La droite passe par l\'origine : loi de Beer-Lambert vérifiée.';
+    },
+};
+
+// ---------------------------------------------------------------- GAZ PARFAITS
+const GazParfaits = {
+    mesurable: true,
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-n', label: 'Quantité de gaz n', min: 0.5, max: 3, step: 0.1, valeur: 1, unite: 'mol', format: v => v.toFixed(1) },
+            { type: 'range', id: 'ctl-tgaz', label: 'Température', min: 200, max: 500, step: 5, valeur: 300, unite: 'K' },
+            { type: 'range', id: 'ctl-vgaz', label: 'Volume V', min: 0.5, max: 30, step: 0.5, valeur: 10, unite: 'L', format: v => v.toFixed(1) },
+        ];
+    },
+    update() {
+        const n = lire('ctl-n'), T = lire('ctl-tgaz'), V = lire('ctl-vgaz');
+        const R = 0.0821, P = (n * R * T) / V;
+        ctx.clearRect(0, 0, W, H);
+        // cylindre
+        const cx = W / 2 - 40, tw = 90, top = 70, bot = 340;
+        const pisto = top + 20 + ((V - 0.5) / (30 - 0.5)) * (bot - top - 60);
+        ctx.fillStyle = '#f1f5f9'; ctx.fillRect(cx, pisto, tw, bot - pisto);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3;
+        ctx.strokeRect(cx, top, tw, bot - top);
+        // piston
+        ctx.fillStyle = '#cbd5e1'; ctx.fillRect(cx - 8, pisto, tw + 16, 12);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 2; ctx.strokeRect(cx - 8, pisto, tw + 16, 12);
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('V = ' + V.toFixed(1) + ' L', cx - 8, pisto - 10);
+        ctx.fillText('n = ' + n.toFixed(1) + ' mol', cx - 8, top + 20);
+        ctx.fillText('T = ' + T + ' K', cx - 8, top + 38);
+        // manomètre
+        const mx = W - 150, my = 130;
+        ctx.beginPath(); ctx.arc(mx, my, 58, 0, Math.PI * 2); ctx.fillStyle = '#f8fafc'; ctx.fill();
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 2; ctx.stroke();
+        ctx.font = '11px Consolas, monospace'; ctx.fillStyle = '#64748b';
+        for (let i = 0; i <= 15; i += 5) {
+            const a = Math.PI * (1 - i / 15);
+            ctx.fillText(i + ' atm', mx - 12 + Math.cos(a) * 42, my - 6 + Math.sin(a) * 42);
+        }
+        const ang = Math.PI * (1 - Math.min(P, 15) / 15);
+        ctx.strokeStyle = Couleur.rouge; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + Math.cos(ang) * 46, my + Math.sin(ang) * 46); ctx.stroke();
+        ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fillStyle = Couleur.encadre; ctx.fill();
+        ctx.fillStyle = Couleur.encadre; ctx.font = 'bold 14px Consolas, monospace';
+        ctx.fillText('P = ' + P.toFixed(2) + ' atm', mx - 40, my + 80);
+        ctx.fillText('PV = ' + (P * V).toFixed(2) + ' atm·L', 14, H - 14);
+        setInfo('P = <strong>' + P.toFixed(2) + ' atm</strong> — nRT = <strong>' + (n * R * T).toFixed(2) + '</strong> atm·L');
+    },
+    lectures() {
+        const n = lire('ctl-n'), T = lire('ctl-tgaz'), V = lire('ctl-vgaz');
+        const P = (n * 0.0821 * T) / V;
+        return [
+            { nom: 'Pression P', valeur: P.toFixed(2), unite: 'atm' },
+            { nom: 'P.V', valeur: (P * V).toFixed(2), unite: 'atm·L' },
+            { nom: 'n.R.T', valeur: (n * 0.0821 * T).toFixed(2), unite: 'atm·L' },
+            { nom: '1/V', valeur: (1 / V).toFixed(3), unite: 'L⁻¹' },
+        ];
+    },
+    mesures() {
+        const n = lire('ctl-n'), T = lire('ctl-tgaz'), V = lire('ctl-vgaz');
+        return [
+            { nom: 'Volume V', valeur: V, unite: 'L' },
+            { nom: 'Pression P', valeur: (n * 0.0821 * T) / V, unite: 'atm' },
+        ];
+    },
+    transformes: { 'Volume V': { '1/V (linéarisation)': e(v => 1 / v) } },
+    parametresTexte() { return 'n = ' + lire('ctl-n').toFixed(1) + ' mol ; T = ' + lire('ctl-tgaz') + ' K ; V variable ; R = 0,0821 atm·L·mol⁻¹·K⁻¹'; },
+    resultatsTexte() {
+        const n = lire('ctl-n'), T = lire('ctl-tgaz'), V = lire('ctl-vgaz');
+        const P = (n * 0.0821 * T) / V;
+        return 'P = ' + P.toFixed(2) + ' atm pour V = ' + V.toFixed(1) + ' L ; PV = ' + (P * V).toFixed(2) + ' atm·L';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const n = lire('ctl-n'), T = lire('ctl-tgaz');
+        return 'Interprétation : P = (nRT).(1/V) ⟹ pente a = nRT = ' + reg.a.toFixed(2) + ' ; nRT attendu = ' + (n * 0.0821 * T).toFixed(2) + ' atm·L. La droite passe par l\'origine : loi de Mariotte vérifiée à T constante.';
+    },
+};
+
+// ---------------------------------------------------------------- CINÉTIQUE CHIMIQUE
+const Cinetique = {
+    mesurable: true,
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-k', label: 'Constante k (à 20 °C)', min: 0.05, max: 1, step: 0.01, valeur: 0.2, unite: 's⁻¹', format: v => v.toFixed(2) },
+            { type: 'range', id: 'ctl-temp', label: 'Température', min: 20, max: 80, step: 1, valeur: 20, unite: '°C' },
+            { type: 'range', id: 'ctl-tcin', label: 'Temps de réaction', min: 0, max: 20, step: 0.5, valeur: 5, unite: 's', format: v => v.toFixed(1) },
+        ];
+    },
+    kEff() {
+        const k20 = lire('ctl-k'), T = lire('ctl-temp');
+        const T20 = 293.15, Ea = 50000, R = 8.314;
+        return k20 * Math.exp((Ea / R) * (1 / T20 - 1 / (T + 273.15)));
+    },
+    update() {
+        const t = lire('ctl-tcin'), A0 = 1;
+        const k = this.kEff();
+        const A = A0 * Math.exp(-k * t);
+        ctx.clearRect(0, 0, W, H);
+        // bécher
+        const bx = 80, by = 130, bw = 170, bh = 230;
+        ctx.fillStyle = '#f1f5f9'; ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = 'rgba(220,38,38,' + (0.25 + 0.65 * (A / A0)) + ')';
+        ctx.fillRect(bx + 3, by + 3, bw - 6, bh - 6);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3; ctx.strokeRect(bx, by, bw, bh);
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('[A] = ' + A.toFixed(3) + ' mol/L', bx + 10, by + 22);
+        ctx.fillText('t₁/₂ = ' + (Math.log(2) / k).toFixed(2) + ' s', bx + 10, by + 42);
+        // courbe [A](t)
+        const gx = W / 2 + 30, gy = 40, gw = W / 2 - 50, gh = H - 90;
+        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, gw, gh);
+        ctx.fillStyle = Couleur.encadre; ctx.font = '12px Consolas, monospace';
+        ctx.fillText('[A] (mol/L) — t (s)', gx + 8, gy - 6);
+        ctx.strokeStyle = Couleur.rouge; ctx.lineWidth = 2; ctx.beginPath();
+        for (let i = 0; i <= 200; i++) {
+            const tt = (i / 200) * 20, aa = A0 * Math.exp(-k * tt);
+            const xx = gx + (tt / 20) * gw, yy = gy + gh - (aa / A0) * gh;
+            i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+        }
+        ctx.stroke();
+        const cxx = gx + (t / 20) * gw, cyy = gy + gh - (A / A0) * gh;
+        ctx.beginPath(); ctx.arc(cxx, cyy, 5, 0, Math.PI * 2); ctx.fillStyle = '#7c3aed'; ctx.fill();
+        ctx.strokeStyle = '#6d28d9'; ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('k effectif = ' + k.toFixed(3) + ' s⁻¹ (T = ' + lire('ctl-temp') + ' °C)', 14, 26);
+        setInfo('[A] = <strong>' + A.toFixed(3) + '</strong> mol/L — ln[A] = <strong>' + Math.log(A).toFixed(3) + '</strong>');
+    },
+    lectures() {
+        const t = lire('ctl-tcin'), k = this.kEff(), A = Math.exp(-k * t);
+        return [
+            { nom: 'Concentration [A]', valeur: A.toFixed(3), unite: 'mol/L' },
+            { nom: 'ln [A]', valeur: Math.log(A).toFixed(3), unite: '' },
+            { nom: 'Constante k', valeur: k.toFixed(3), unite: 's⁻¹' },
+            { nom: 'Temps de demi-réaction', valeur: (Math.log(2) / k).toFixed(2), unite: 's' },
+        ];
+    },
+    mesures() {
+        const t = lire('ctl-tcin'), k = this.kEff(), A = Math.exp(-k * t);
+        return [
+            { nom: 'Temps t', valeur: t, unite: 's' },
+            { nom: 'Concentration [A]', valeur: A, unite: 'mol/L' },
+        ];
+    },
+    transformes: { 'Concentration [A]': { 'ln[A] — linéarisation': e(v => Math.log(v)) } },
+    parametresTexte() { return 'k(20 °C) = ' + lire('ctl-k').toFixed(2) + ' s⁻¹ ; T = ' + lire('ctl-temp') + ' °C ; [A]₀ = 1,00 mol/L ; Ea = 50 kJ/mol'; },
+    resultatsTexte() {
+        const t = lire('ctl-tcin'), k = this.kEff(), A = Math.exp(-k * t);
+        return '[A] = ' + A.toFixed(3) + ' mol/L à t = ' + t.toFixed(1) + ' s ; k = ' + k.toFixed(3) + ' s⁻¹ ; t₁/₂ = ' + (Math.log(2) / k).toFixed(2) + ' s';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const k = -reg.a;
+        return 'Interprétation : ln[A] = ln[A]₀ - k.t ⟹ pente a = -k ⟹ k = ' + k.toFixed(3) + ' s⁻¹ et t₁/₂ = ' + (Math.log(2) / k).toFixed(2) + ' s. La linéarité confirme un ordre 1.';
+    },
+};
+
+// ---------------------------------------------------------------- PHOTOSYNTHÈSE
+const Photosynthese = {
+    mesurable: true,
+    bulles: [], t: 0,
+    init() { this.bulles = []; this.t = 0; },
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-lumiere', label: 'Intensité lumineuse', min: 0, max: 100, step: 1, valeur: 60, unite: '%' },
+            { type: 'range', id: 'ctl-co2', label: 'Concentration CO₂', min: 0, max: 2000, step: 10, valeur: 600, unite: 'ppm' },
+            { type: 'range', id: 'ctl-temperature', label: 'Température', min: 0, max: 50, step: 1, valeur: 25, unite: '°C' },
+        ];
+    },
+    taux(lumiere, co2, temp) {
+        const fl = lumiere / (lumiere + 40);
+        const fc = co2 / (co2 + 300);
+        const ft = Math.exp(-0.5 * Math.pow((temp - 27) / 12, 2));
+        return Math.max(0, 35 * fl * fc * ft);
+    },
+    update(dt) {
+        this.t += dt;
+        const l = lire('ctl-lumiere'), c = lire('ctl-co2'), tm = lire('ctl-temperature');
+        const taux = this.taux(l, c, tm);
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#e0f2fe'; ctx.fillRect(0, 0, W, H);
+        const soleilR = 22 + (l / 100) * 18;
+        ctx.beginPath(); ctx.arc(90, 66, soleilR, 0, Math.PI * 2);
+        ctx.fillStyle = l < 10 ? '#94a3b8' : '#fbbf24'; ctx.fill();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('Lumière ' + l + '%', 90 - 40, 104);
+        ctx.fillStyle = '#86efac'; ctx.fillRect(0, H - 60, W, 60);
+        ctx.strokeStyle = '#166534'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, H - 60); ctx.lineTo(W, H - 60); ctx.stroke();
+        ctx.strokeStyle = '#166534'; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(W / 2, H - 30); ctx.quadraticCurveTo(W / 2 - 10, H / 2, W / 2, H / 2 - 40); ctx.stroke();
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath(); ctx.ellipse(W / 2 + 45, H / 2 - 30, 90, 40, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(W / 2 - 45, H / 2 - 30, 90, 40, 0.3, 0, Math.PI * 2); ctx.fill();
+        if (taux > 0 && Math.random() < taux / 35) this.bulles.push({ x: W / 2 + 45 + Math.random() * 60, y: H / 2 - 40, v: 1 + taux / 30 });
+        this.bulles.forEach(b => b.y -= b.v);
+        this.bulles = this.bulles.filter(b => b.y > 30);
+        ctx.fillStyle = '#0ea5e9'; ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 1.5;
+        this.bulles.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+        ctx.fillStyle = Couleur.encadre; ctx.font = '14px Consolas, monospace';
+        ctx.fillText('Taux de photosynthèse : ' + taux.toFixed(1) + ' µmol O₂/m²/s', 14, 28);
+        ctx.fillText('CO₂ : ' + c + ' ppm    T : ' + tm + ' °C', 14, 48);
+        setInfo('Production d\'O₂ : <strong>' + taux.toFixed(1) + ' µmol/m²/s</strong>');
+    },
+    lectures() {
+        const l = lire('ctl-lumiere'), c = lire('ctl-co2'), t = lire('ctl-temperature');
+        const taux = this.taux(l, c, t);
+        return [
+            { nom: 'Taux de photosynthèse', valeur: taux.toFixed(1), unite: 'µmol O₂/m²/s' },
+            { nom: 'Facteur lumineux', valeur: (l / (l + 40)).toFixed(2), unite: '' },
+            { nom: 'Facteur CO₂', valeur: (c / (c + 300)).toFixed(2), unite: '' },
+            { nom: 'Facteur température', valeur: Math.exp(-0.5 * Math.pow((t - 27) / 12, 2)).toFixed(2), unite: '' },
+        ];
+    },
+    mesures() {
+        const l = lire('ctl-lumiere'), c = lire('ctl-co2'), t = lire('ctl-temperature');
+        return [
+            { nom: 'Lumière', valeur: l, unite: '%' },
+            { nom: 'Taux de photosynthèse', valeur: this.taux(l, c, t), unite: 'µmol O₂/m²/s' },
+        ];
+    },
+    parametresTexte() { return 'Lumière = ' + lire('ctl-lumiere') + ' % ; CO₂ = ' + lire('ctl-co2') + ' ppm ; T = ' + lire('ctl-temperature') + ' °C'; },
+    resultatsTexte() {
+        const l = lire('ctl-lumiere'), c = lire('ctl-co2'), t = lire('ctl-temperature');
+        return 'Taux = ' + this.taux(l, c, t).toFixed(1) + ' µmol O₂/m²/s (optimum ≈ 27 °C, lumière et CO₂ saturants)';
+    },
+    interpreter(reg) { return null; },
+};
+
+// ---------------------------------------------------------------- MICROSCOPE
+const Microscope = {
+    mesurable: true,
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-grossissement', label: 'Grossissement', min: 40, max: 400, step: 10, valeur: 100, unite: '×', reinit: true },
+            { type: 'range', id: 'ctl-focus', label: 'Mise au point', min: 0, max: 100, step: 1, valeur: 80, unite: '%' },
+        ];
+    },
+    update() {
+        const G = lire('ctl-grossissement'), focus = lire('ctl-focus');
+        const diam = 5000 / G;
+        const nbCell = Math.max(1, Math.round(diam / 22));
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, W, H);
+        const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 24;
+        const g = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R);
+        g.addColorStop(0, '#fefce8'); g.addColorStop(0.85, '#fde68a'); g.addColorStop(1, '#f59e0b');
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 4; ctx.stroke();
+        const alpha = Math.max(0.15, focus / 100);
+        const cols = Math.max(3, Math.ceil(Math.sqrt(nbCell * 1.6)));
+        ctx.globalAlpha = alpha;
+        for (let i = 0; i < nbCell; i++) {
+            const col = i % cols, row = Math.floor(i / cols);
+            const cellR = Math.min(26, (diam / cols) * 0.42);
+            const x = cx - R * 0.62 + col * ((2 * R * 0.62) / Math.max(cols - 1, 1));
+            const y = cy - R * 0.55 + row * ((2 * R * 0.55) / Math.max(Math.ceil(nbCell / cols) - 1, 1));
+            ctx.beginPath(); ctx.ellipse(x, y, cellR, cellR * 0.72, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#16a34a'; ctx.fill();
+            ctx.strokeStyle = '#14532d'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.beginPath(); ctx.arc(x, y, cellR * 0.28, 0, Math.PI * 2); ctx.fillStyle = '#14532d'; ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = Couleur.encadre; ctx.font = '12px Consolas, monospace';
+        ctx.fillText('G = ' + G + ' ×   |   diamètre du champ = ' + diam.toFixed(0) + ' µm   |   ' + nbCell + ' cellules', 14, 24);
+        // barre d'échelle
+        const bar = diam / 5;
+        const bxx = cx + R * 0.3, byy = cy + R * 0.78;
+        ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(bxx, byy); ctx.lineTo(bxx + (2 * R * 0.4) * (bar / diam), byy); ctx.stroke();
+        ctx.fillText(bar.toFixed(0) + ' µm', bxx, byy + 18);
+        if (focus < 40) ctx.fillText('⚠ hors de mise au point — tournez la vis macrométrique', cx - 170, H - 14);
+        setInfo('Grossissement <strong>' + G + '×</strong> — champ <strong>' + diam.toFixed(0) + ' µm</strong>');
+    },
+    lectures() {
+        const G = lire('ctl-grossissement'), diam = 5000 / G;
+        return [
+            { nom: 'Grossissement', valeur: G, unite: '×' },
+            { nom: 'Diamètre du champ', valeur: diam.toFixed(0), unite: 'µm' },
+            { nom: 'Cellules observées', valeur: Math.max(1, Math.round(diam / 22)), unite: '' },
+            { nom: 'Résolution optique', valeur: '≈ 0,2', unite: 'µm' },
+        ];
+    },
+    mesures() {
+        const G = lire('ctl-grossissement'), diam = 5000 / G;
+        return [
+            { nom: 'Grossissement G', valeur: G, unite: '×' },
+            { nom: 'Diamètre du champ', valeur: diam, unite: 'µm' },
+            { nom: 'Cellules observées', valeur: Math.max(1, Math.round(diam / 22)), unite: '' },
+        ];
+    },
+    transformes: { 'Grossissement G': { '1/G (linéarisation)': e(v => 1 / v) } },
+    parametresTexte() { return 'Grossissement = ' + lire('ctl-grossissement') + ' × ; mise au point = ' + lire('ctl-focus') + ' %'; },
+    resultatsTexte() {
+        const G = lire('ctl-grossissement'), diam = 5000 / G;
+        return 'Champ = ' + diam.toFixed(0) + ' µm à ' + G + ' × ; diamètre = 5000/G ⟹ calibration du micromètre objet vérifiée.';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        return 'Interprétation : diamètre = 5000 × (1/G) ⟹ pente a = ' + reg.a.toFixed(1) + ' ≈ 5000 µm·× (constante du microscope).';
+    },
+};
+
+// ---------------------------------------------------------------- ÉLECTROPHORÈSE
+const Electrophorese = {
+    mesurable: true,
+    marqueurs: [100, 300, 600, 1000, 2000, 5000, 10000],
+    distance(M) {
+        const U = lire('ctl-tension');
+        return 12 + 78 * (Math.log10(10000) - Math.log10(M)) / 2 * (U / 100);
+    },
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-taille', label: 'Taille ADN échantillon', min: 100, max: 10000, step: 50, valeur: 800, unite: 'pb', reinit: true },
+            { type: 'range', id: 'ctl-tension', label: 'Tension de migration', min: 50, max: 150, step: 5, valeur: 100, unite: 'V', reinit: true },
+        ];
+    },
+    update() {
+        const M = lire('ctl-taille');
+        ctx.clearRect(0, 0, W, H);
+        const gx = 90, gy = 60, gw = 340, gh = 310;
+        ctx.fillStyle = '#eef2f7'; ctx.fillRect(gx, gy, gw, gh);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 3; ctx.strokeRect(gx, gy, gw, gh);
+        ctx.fillStyle = Couleur.encadre; ctx.font = '12px Consolas, monospace';
+        ctx.fillText('puits de dépôt', gx, gy - 8);
+        const lanes = this.marqueurs.length;
+        for (let i = 0; i < lanes; i++) {
+            const x = gx + 34 + i * 44;
+            // puits
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(x - 5, gy + 8, 10, 16);
+            const d = this.distance(this.marqueurs[i]);
+            const y = gy + 34 + d * 2.4;
+            ctx.fillStyle = '#7c3aed';
+            ctx.fillRect(x - 3, y, 6, 10);
+        }
+        // lane échantillon
+        const ex = gx + 34 + lanes * 44 + 22;
+        ctx.fillStyle = '#0f172a'; ctx.fillRect(ex - 5, gy + 8, 10, 16);
+        const ed = this.distance(M);
+        const ey = gy + 34 + ed * 2.4;
+        ctx.fillStyle = '#dc2626'; ctx.fillRect(ex - 3, ey, 6, 10);
+        ctx.fillStyle = Couleur.encadre; ctx.font = '11px Consolas, monospace';
+        ctx.fillText('échantillon', ex - 40, gy + 30);
+        ctx.fillText(M + ' pb', ex - 40, gy + 44);
+        // règle (mm)
+        const rx = gx + gw + 16, ry = gy + 34;
+        ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1;
+        for (let mm = 0; mm <= 100; mm += 10) {
+            const y = ry + mm * 2.4;
+            ctx.beginPath(); ctx.moveTo(rx, y); ctx.lineTo(rx + 8, y); ctx.stroke();
+            if (mm % 20 === 0) ctx.fillText(mm + ' mm', rx + 12, y + 4);
+        }
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('Tension : ' + lire('ctl-tension') + ' V   |   échantillon ' + M + ' pb → ' + ed.toFixed(1) + ' mm', 14, 28);
+        setInfo('Échantillon <strong>' + M + ' pb</strong> — migration <strong>' + ed.toFixed(1) + ' mm</strong>');
+    },
+    lectures() {
+        const M = lire('ctl-taille');
+        return [
+            { nom: 'Distance (échantillon)', valeur: this.distance(M).toFixed(1), unite: 'mm' },
+            { nom: 'log₁₀(taille)', valeur: Math.log10(M).toFixed(3), unite: '' },
+            { nom: 'Marqueur 100 pb', valeur: this.distance(100).toFixed(1), unite: 'mm' },
+            { nom: 'Marqueur 10000 pb', valeur: this.distance(10000).toFixed(1), unite: 'mm' },
+        ];
+    },
+    mesures() {
+        const M = lire('ctl-taille');
+        return [
+            { nom: 'Taille M', valeur: M, unite: 'pb' },
+            { nom: 'Distance de migration', valeur: this.distance(M), unite: 'mm' },
+        ];
+    },
+    transformes: { 'Taille M': { 'log₁₀(M) — linéarisation': e(v => Math.log10(v)) } },
+    parametresTexte() { return 'Tension = ' + lire('ctl-tension') + ' V ; gel d\'agarose 1,2 % ; marqueurs 100–10000 pb'; },
+    resultatsTexte() {
+        const M = lire('ctl-taille');
+        return 'Échantillon : ' + M + ' pb → migration ' + this.distance(M).toFixed(1) + ' mm (loi d = a - b.log₁₀ M)';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.b) < 1e-9) return null;
+        return 'Interprétation : d = a - b.log₁₀(M) avec a = ' + reg.b.toFixed(1) + ' et b = ' + (-reg.a).toFixed(1) + ' mm/décade. La pente négative confirme que les petits fragments migrent plus loin.';
+    },
+};
+
+// ---------------------------------------------------------------- RESPIRATION / ARRHENIUS
+const Respiration = {
+    mesurable: true,
+    taux(T) {
+        const Q10 = 2, r0 = 2.0;
+        return r0 * Math.pow(Q10, (T - 20) / 10);
+    },
+    controles() {
+        return [
+            { type: 'range', id: 'ctl-tres', label: 'Température du bain', min: 5, max: 40, step: 1, valeur: 20, unite: '°C' },
+            { type: 'range', id: 'ctl-tresmin', label: 'Temps de mesure', min: 0, max: 10, step: 0.5, valeur: 5, unite: 'min', format: v => v.toFixed(1) },
+        ];
+    },
+    update() {
+        const T = lire('ctl-tres'), t = lire('ctl-tresmin');
+        const r = this.taux(T);
+        const consO2 = r * t;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, W, H);
+        // tube respiromètre
+        const tx = 90, ty = 120, tw = 460, th = 40;
+        ctx.fillStyle = '#e2e8f0'; ctx.fillRect(tx, ty, tw, th);
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, tw, th);
+        ctx.fillStyle = '#bfdbfe'; ctx.fillRect(tx, ty + 4, tw - 8, th - 8);
+        ctx.fillStyle = '#b91c1c';
+        ctx.beginPath(); ctx.arc(tx + 60 + consO2 * 30, ty + 20, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('goutte indicatrice', tx, ty + th + 22);
+        ctx.fillText('Déplacement ∝ O₂ consommé', tx, ty + th + 40);
+        ctx.fillText('organisme', tx + 150, ty + 90);
+        ctx.fillStyle = '#166534';
+        ctx.fillRect(tx + 160, ty - 30, 70, 30);
+        // bulles
+        const nb = Math.min(12, Math.round(consO2 / 2));
+        for (let i = 0; i < nb; i++) {
+            ctx.beginPath(); ctx.arc(tx + 200 + i * 8, ty + 10 + (i % 3) * 6, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#38bdf8'; ctx.fill(); ctx.strokeStyle = '#0369a1'; ctx.stroke();
+        }
+        // thermomètre
+        const thx = W - 130, thy = 60, thh = 260;
+        ctx.strokeStyle = Couleur.encadre; ctx.lineWidth = 2;
+        ctx.strokeRect(thx, thy, 26, thh);
+        ctx.fillStyle = '#f87171';
+        const thval = (T - 5) / 35;
+        ctx.fillRect(thx + 3, thy + thh * (1 - thval) + 3, 20, thh * thval - 3);
+        ctx.beginPath(); ctx.arc(thx + 13, thy + thh + 8, 13, 0, Math.PI * 2);
+        ctx.fillStyle = '#ef4444'; ctx.fill(); ctx.stroke();
+        ctx.fillStyle = Couleur.encadre; ctx.font = 'bold 14px Consolas, monospace';
+        ctx.fillText(T + ' °C', thx - 36, thy - 10);
+        ctx.fillStyle = Couleur.encadre; ctx.font = '13px Consolas, monospace';
+        ctx.fillText('Taux de consommation : ' + r.toFixed(1) + ' µL O₂/min', 14, 28);
+        ctx.fillText('O₂ consommé en ' + t.toFixed(1) + ' min : ' + consO2.toFixed(1) + ' µL', 14, 46);
+        setInfo('Taux O₂ = <strong>' + r.toFixed(1) + ' µL/min</strong> à ' + T + ' °C — ln(r) = <strong>' + Math.log(r).toFixed(3) + '</strong>');
+    },
+    lectures() {
+        const T = lire('ctl-tres'), r = this.taux(T);
+        return [
+            { nom: 'Taux de consommation', valeur: r.toFixed(1), unite: 'µL O₂/min' },
+            { nom: 'ln(taux)', valeur: Math.log(r).toFixed(3), unite: '' },
+            { nom: '1/T', valeur: (1 / (T + 273.15)).toFixed(5), unite: 'K⁻¹' },
+            { nom: 'Quotient Q10', valeur: '2,0 (10 °C)', unite: '' },
+        ];
+    },
+    mesures() {
+        const T = lire('ctl-tres');
+        return [
+            { nom: 'Température T', valeur: T, unite: '°C' },
+            { nom: 'Taux de consommation', valeur: this.taux(T), unite: 'µL O₂/min' },
+        ];
+    },
+    transformes: {
+        'Température T': { '1/T (K⁻¹) — Arrhenius': e(v => 1 / (v + 273.15)) },
+        'Taux de consommation': { 'ln(taux) — Arrhenius': e(v => Math.log(v)) },
+    },
+    parametresTexte() { return 'T = ' + lire('ctl-tres') + ' °C ; temps de mesure = ' + lire('ctl-tresmin').toFixed(1) + ' min ; Q10 = 2 ; CO₂ absorbé par la soude'; },
+    resultatsTexte() {
+        const T = lire('ctl-tres'), r = this.taux(T), t = lire('ctl-tresmin');
+        return 'Taux = ' + r.toFixed(1) + ' µL O₂/min à ' + T + ' °C ; consommation totale = ' + (r * t).toFixed(1) + ' µL sur ' + t.toFixed(1) + ' min';
+    },
+    interpreter(reg) {
+        if (Math.abs(reg.a) < 1e-9) return null;
+        const R = 8.314, Ea = -reg.a * R / 1000;
+        return 'Interprétation : ln(r) = ln(k₀) - (Ea/R)(1/T) ⟹ pente a = -Ea/R ⟹ Ea = ' + Ea.toFixed(1) + ' kJ/mol (ordre de grandeur biologique 50–90 kJ/mol).';
+    },
+};
+
+// ------------------------------------------------------------------ sélection
+const SIMS = {
+    'pendule': Pendule, 'projectile': Projectile, 'chute-libre': ChuteLibre,
+    'ressort': Ressort, 'loi-ohm': LoiOhm, 'refraction': Refraction, 'gaz-parfaits': GazParfaits,
+    'titration': Titration, 'ph-indicateur': PhIndicateur, 'equation-bilan': EquationBilan,
+    'dilution': Dilution, 'cinetique': Cinetique,
+    'photosynthese': Photosynthese, 'microscope': Microscope, 'electrophorese': Electrophorese,
+    'respiration': Respiration,
+};
+
+let sim = SIMS[SLUG] || null;
+
+function initialiserUI() {
+    if (!sim) { notif('Expérience non reconnue : simulation indisponible.'); return; }
+    construireControles();
+    if (sim.init) sim.init();
+    if (sim.mesurable === false) {
+        document.getElementById('zone-quantitatif').style.display = 'none';
+        document.getElementById('zone-qualitatif').style.display = 'block';
+    } else {
+        document.getElementById('zone-quantitatif').style.display = 'block';
+        document.getElementById('zone-qualitatif').style.display = 'none';
+    }
+}
+
+let dernierLecture = 0;
+
+function boucle(t) {
+    requestAnimationFrame(boucle);
+    const dt = Math.min(0.05, (t - dernierT) / 1000 || 0.016);
+    dernierT = t;
+    if (enCourse) temps += dt;
+    if (sim && sim.update) sim.update(dt);
+    if (sim && sim.lectures && temps - dernierLecture > 0.15) {
+        dernierLecture = temps;
+        afficherLectures(sim.lectures());
+    }
+}
+
+initialiserUI();
+requestAnimationFrame(boucle);
+setInterval(synchroniserRapport, 800);
+</script>
+{% endblock %}

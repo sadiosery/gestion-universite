@@ -1,0 +1,114 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Tableau de bord — Espace étudiant{% endblock %}
+{% block entete %}Tableau de bord{% endblock %}
+{% block contenu %}
+<div class="bandeau p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h4 class="mb-1">Bienvenue, {{ etudiant.prenom }} {{ etudiant.nom }}</h4>
+            <span class="text-white-50">
+                Matricule : <strong>{{ etudiant.matricule }}</strong>
+                · Filière : <strong>{{ etudiant.filiere.nom }}</strong>
+                {% if annee %}· Année : <strong>{{ annee.libelle }}</strong>{% endif %}
+            </span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'universite_releve_etudiant' etudiant.pk %}" class="btn btn-light btn-sm"><i class="bi bi-file-earmark-text me-1"></i>Mon bulletin</a>
+            <a href="{% url 'universite_labo' %}" class="btn btn-light btn-sm"><i class="bi bi-magic me-1"></i>Laboratoire</a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card stat-card grad-sco text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Moyenne (CGPA)</span><i class="bi bi-pencil-square fs-5"></i></div>
+        <h3 class="mb-0">{{ cgpa }}/20</h3><small class="text-white-50">sur l'ensemble des UE</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card bg-primary text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">UE validées</span><i class="bi bi-check2-circle fs-5"></i></div>
+        <h3 class="mb-0">{{ nb_valid }}</h3><small class="text-white-50">unités d'enseignement</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card bg-info text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Crédits acquis</span><i class="bi bi-patch-check fs-5"></i></div>
+        <h3 class="mb-0">{{ credits }}</h3><small class="text-white-50">ECTS cumulés</small>
+    </div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card bg-warning text-white p-3">
+        <div class="d-flex justify-content-between"><span class="small text-white-50">Mes UE</span><i class="bi bi-journal-bookmark fs-5"></i></div>
+        <h3 class="mb-0">{{ nb_ues }}</h3><small class="text-white-50">dans ma filière</small>
+    </div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card carte h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-cup-hot me-2 text-warning"></i>Menu du jour</strong>
+                <a href="{% url 'universite_cantine' %}" class="btn btn-sm btn-outline-warning">Cantine</a>
+            </div>
+            <div class="card-body">
+                {% if menus %}
+                    {% for m in menus %}
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div>
+                            <span class="badge bg-warning-subtle text-warning-emphasis me-2">{{ m.get_type_display }}</span>
+                            <strong>{{ m.plat.nom }}</strong>
+                            <small class="d-block text-muted">{{ m.plat.calories }} kcal · {{ m.plat.prix }} {{ universite_parametres.devise_code }}</small>
+                        </div>
+                        {% if m.plat.vegetarien %}<i class="bi bi-leaf text-success" title="Végétarien"></i>{% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">Aucun menu programmé pour aujourd'hui.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card carte h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-wallet2 me-2 text-success"></i>Mon compte cantine</strong>
+                <a href="{% url 'universite_cantine' %}" class="btn btn-sm btn-outline-success">Mes commandes</a>
+            </div>
+            <div class="card-body">
+                {% if compte %}
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <span class="text-muted">Carte</span>
+                        <strong>{{ compte.code_carte }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <span class="text-muted">Solde</span>
+                        <strong>{{ compte.solde }} {{ universite_parametres.devise_code }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-2">
+                        <span class="text-muted">Statut</span>
+                        <span class="badge bg-{% if compte.solde > 0 %}success{% else %}danger{% endif %}">{% if compte.solde > 0 %}Opérationnel{% else %}Solde nul{% endif %}</span>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Aucun compte cantine associé à votre profil.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card carte mt-3">
+    <div class="card-header bg-white"><strong><i class="bi bi-pencil-square me-2 text-primary"></i>Mes dernières notes</strong></div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>UE</th><th>Type</th><th>Note</th><th>Appréciation</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for n in recentes_notes %}
+                <tr>
+                    <td>{{ n.ue.code }} — {{ n.ue.nom }}</td>
+                    <td>{{ n.get_type_display }}</td>
+                    <td><span class="badge bg-{% if n.note >= 10 %}success{% else %}danger{% endif %}">{{ n.note }}/20</span></td>
+                    <td>{{ n.apprecie|default:'—' }}</td>
+                    <td>{{ n.date|date:'d/m/Y' }}</td>
+                </tr>
+                {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Aucune note saisie</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

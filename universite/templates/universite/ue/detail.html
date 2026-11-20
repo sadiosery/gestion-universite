@@ -1,0 +1,86 @@
+{% extends 'universite/base.html' %}
+{% block titre %}{{ ue.code }} — {{ ue.nom }}{% endblock %}
+{% block entete %}{{ ue.code }} — {{ ue.nom }}{% endblock %}
+{% block contenu %}
+<div class="card carte mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="mb-2">{{ ue.nom }}</h5>
+                <span class="badge bg-primary me-1">{{ ue.credits }} ECTS</span>
+                <span class="badge bg-info">{{ ue.get_type_display }}</span>
+                <span class="badge bg-secondary">{{ ue.volume_horaire }} h</span>
+                <div class="text-muted mt-2">
+                    <i class="bi bi-mortarboard me-1"></i>{{ ue.filiere.nom }} · {{ ue.semestre.nom }} ({{ ue.semestre.annee.libelle }})
+                </div>
+                {% if ue.description %}<p class="mt-2">{{ ue.description }}</p>{% endif %}
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'universite_ue_update' ue.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Modifier</a>
+                <a href="{% url 'universite_ue_delete' ue.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Supprimer</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card carte mb-3">
+            <div class="card-header bg-white"><strong><i class="bi bi-person-workspace me-2 text-success"></i>Enseignants affectés</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Enseignant</th><th>Grade</th><th>C+TD+TP</th><th>Total</th></tr></thead>
+                    <tbody>
+                        {% for a in affectations %}
+                        <tr>
+                            <td>{{ a.enseignant.nom_complet }}</td>
+                            <td>{{ a.enseignant.grade }}</td>
+                            <td>{{ a.heures_cours }}+{{ a.heures_td }}+{{ a.heures_tp }}</td>
+                            <td><strong>{{ a.total_heures }} h</strong></td>
+                        </tr>
+                        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun enseignant affecté</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card carte">
+            <div class="card-header bg-white"><strong><i class="bi bi-calendar-week me-2 text-primary"></i>Creneaux de cours</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Jour</th><th>Heures</th><th>Type</th><th>Salle</th></tr></thead>
+                    <tbody>
+                        {% for cr in creneaux %}
+                        <tr>
+                            <td>{{ cr.jour }}</td>
+                            <td>{{ cr.heure_debut|time:'H:i' }} — {{ cr.heure_fin|time:'H:i' }}</td>
+                            <td>{{ cr.get_type_display }}</td>
+                            <td>{{ cr.salle.nom|default:'—' }}</td>
+                        </tr>
+                        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucun créneau</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card carte h-100">
+            <div class="card-header bg-white"><strong><i class="bi bi-pencil-square me-2 text-warning"></i>Dernières notes</strong></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Étudiant</th><th>Type</th><th>Note</th><th>Date</th></tr></thead>
+                    <tbody>
+                        {% for n in dernieres_notes %}
+                        <tr>
+                            <td>{{ n.etudiant.nom }} {{ n.etudiant.prenom }}</td>
+                            <td>{{ n.get_type_display }}</td>
+                            <td><span class="badge bg-{% if n.note >= 10 %}success{% else %}danger{% endif %}">{{ n.note }}</span></td>
+                            <td>{{ n.date|date:'d/m/Y' }}</td>
+                        </tr>
+                        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">Aucune note</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

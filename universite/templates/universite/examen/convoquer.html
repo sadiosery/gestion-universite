@@ -1,0 +1,40 @@
+{% extends 'universite/base.html' %}
+{% load universite_tags %}
+{% block titre %}Convocation — {{ epreuve.ue.code }}{% endblock %}
+{% block entete %}Convocation — {{ epreuve.ue.code }}{% endblock %}
+{% block contenu %}
+<div class="card carte mb-3">
+    <div class="card-body">
+        <span class="text-muted">{{ epreuve.examen.nom }} · {{ epreuve.date|date:'d/m/Y' }} à {{ epreuve.heure_debut|time:'H:i' }}</span>
+        <span class="badge bg-primary ms-2">{{ epreuve.duree }} min</span>
+        {% if epreuve.salle %}<span class="badge bg-secondary ms-1">Salle {{ epreuve.salle.nom }}</span>{% endif %}
+    </div>
+</div>
+
+<div class="card carte">
+    <div class="card-header bg-white"><strong><i class="bi bi-person-check me-2 text-success"></i>Feuille d'émargement & notes</strong></div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light"><tr><th>Étudiant</th><th>Matricule</th><th>Présent</th><th>Note / 20</th></tr></thead>
+            <tbody>
+                {% for e in etudiants %}
+                <tr>
+                    <td>{{ e.nom }} {{ e.prenom }}</td>
+                    <td class="text-muted">{{ e.matricule }}</td>
+                    <td>
+                        {% with cv=convos|get_item:e.pk %}
+                        <form method="post" class="d-flex gap-2 align-items-center">
+                            {% csrf_token %}
+                            <input type="hidden" name="etudiant" value="{{ e.pk }}">
+                            <input type="checkbox" class="form-check-input" name="present" {% if cv.present %}checked{% endif %} onchange="this.form.submit()">
+                            <input type="number" step="0.25" min="0" max="20" name="note" value="{% if cv %}{{ cv.note_epreuve }}{% endif %}" class="form-control form-control-sm" style="width:90px" onchange="this.form.submit()">
+                        </form>
+                        {% endwith %}
+                    </td>
+                </tr>
+                {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Aucun étudiant</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

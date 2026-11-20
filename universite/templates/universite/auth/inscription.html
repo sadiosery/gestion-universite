@@ -1,0 +1,61 @@
+{% extends 'universite/base.html' %}
+{% block titre %}Créer un compte étudiant{% endblock %}
+{% block entete %}Créer un compte étudiant{% endblock %}
+{% block contenu %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card carte">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    {% if universite_parametres.logo %}
+                        <img src="{{ universite_parametres.logo.url }}" alt="Logo" height="64" style="object-fit:contain">
+                    {% else %}
+                        <i class="bi bi-person-plus-fill" style="font-size:3rem; color:#0b1f3a"></i>
+                    {% endif %}
+                    <h4 class="mt-3 mb-0">Créer mon compte étudiant</h4>
+                    <small class="text-muted">Renseignez votre matricule et votre identité pour vérifier votre profil.</small>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Matricule <span class="text-danger">*</span></label>
+                            <input type="text" name="matricule" class="form-control" required autofocus value="{{ valeurs.matricule }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nom d'utilisateur <span class="text-danger">*</span></label>
+                            <input type="text" name="username" class="form-control" required value="{{ valeurs.username }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nom <span class="text-danger">*</span></label>
+                            <input type="text" name="nom" class="form-control" required value="{{ valeurs.nom }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Prénom <span class="text-danger">*</span></label>
+                            <input type="text" name="prenom" class="form-control" required value="{{ valeurs.prenom }}">
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Adresse email</label>
+                            <input type="email" name="email" class="form-control" value="{{ valeurs.email }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mot de passe <span class="text-danger">*</span></label>
+                            <input type="password" name="mot_de_passe" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Confirmer le mot de passe <span class="text-danger">*</span></label>
+                            <input type="password" name="confirmation" class="form-control" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-lg me-1"></i>Créer mon compte
+                    </button>
+                </form>
+                <p class="text-center mt-3 mb-0">
+                    <a href="{% url 'login' %}">Déjà inscrit ? Se connecter</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
